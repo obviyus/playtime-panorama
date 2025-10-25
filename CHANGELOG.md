@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/obviyus/playtime-panorama/compare/v1.2.3...v1.3.0) (2025-10-25)
+
+
+### Features
+
+* improved error messages or validation ([75fae38](https://github.com/obviyus/playtime-panorama/commit/75fae38657dd9f47d2a4c8092d89b6057bdc2682))
+
 ## [1.2.3](https://github.com/obviyus/playtime-panorama/compare/v1.2.2...v1.2.3) (2025-10-25)
 
 

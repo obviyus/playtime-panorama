@@ -87,4 +87,4 @@ const server = Bun.serve({
 	},
 });
 
-console.log(`Steam collage server running on ${server.url}`);
+console.log(`playtime-panorama server running on ${server.url}...`);

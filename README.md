@@ -1,4 +1,6 @@
-# stime-capsule
+# playtime-panorama
+
+Generate a collage of your Steam games, scaled by playtime.
 
 To install dependencies:
 
@@ -9,7 +11,5 @@ bun install
 To run:
 
 ```bash
-bun run index.ts
+bun run dev
 ```
-
-This project was created using `bun init` in bun v1.3.1. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.

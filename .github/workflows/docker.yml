@@ -12,15 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: 24
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          bun add -g semantic-release @semantic-release/changelog @semantic-release/git
-          semantic-release
+          npm install --no-save semantic-release @semantic-release/changelog @semantic-release/git
+          npx semantic-release
 
   build:
     needs: release

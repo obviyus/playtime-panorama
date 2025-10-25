@@ -4,7 +4,7 @@
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>__STEAM_ID_HTML__'s Steam collage</title>
+	<title>Steam collage</title>
 	<style>
 		:root {
 			color-scheme: dark;
@@ -13,19 +13,19 @@
 			color: #f5f7ff;
 		}
 
-	html,
-	body {
-			min-height: 100%;
+		html,
+		body {
+			height: 100%;
 			width: 100%;
 			margin: 0;
 			overflow-x: hidden;
-			background: #05060d;
+			overflow-y: auto;
+			background: #66ff00;
 			color: #f5f7ff;
 		}
 
 		body {
 			font: inherit;
-			overflow-y: auto;
 			overscroll-behavior: contain;
 		}
 
@@ -34,15 +34,14 @@
 			min-height: 100vh;
 			display: block;
 			position: relative;
-			padding: clamp(12px, 2.4vw, 32px);
+			padding: 0;
 			box-sizing: border-box;
 		}
 
 		.games-stage {
 			position: relative;
 			width: 100%;
-			max-width: 1920px;
-			margin: 0 auto;
+			margin: 0;
 			overflow: visible;
 			padding: 0;
 			box-sizing: border-box;
@@ -87,26 +86,34 @@
 		.games-grid {
 			position: relative;
 			width: 100%;
-			min-height: 50vh;
-			overflow: visible;
+			display: grid;
+			margin: 0;
+			padding: 0;
+			gap: 0;
+			grid-auto-flow: dense;
+			grid-template-columns: repeat(var(--columns, 1), minmax(0, 1fr));
+			grid-auto-rows: var(--row-size, 100px);
 			background: transparent;
-			contain: layout paint style;
+			box-sizing: border-box;
 		}
 
 		.game-card {
-			position: absolute;
-			top: 0;
-			left: 0;
+			position: relative;
+			width: 100%;
+			height: 100%;
+			display: flex;
+			align-items: stretch;
+			justify-content: stretch;
 			overflow: hidden;
-			will-change: transform;
+			background: #05060f;
 		}
 
 		.game-card img {
 			display: block;
 			width: 100%;
 			height: 100%;
-			object-fit: cover;
 			image-rendering: auto;
+			object-fit: contain;
 		}
 
 		@keyframes spin {
@@ -125,144 +132,84 @@
 		</div>
 	</main>
 	<script type="module">
-		const STEAM_CDN_BASE = __STEAM_CDN_BASE__;
-		const steamID = __STEAM_ID_JSON__;
+		const STEAM_CDN_BASE = "https://cdn.steamstatic.com/steam/apps";
+
+		const getSteamIdFromPath = () => {
+			const raw = window.location.pathname.slice(1);
+			if (!raw) {
+				return "";
+			}
+			try {
+				return decodeURIComponent(raw);
+			} catch {
+				return raw;
+			}
+		};
+
+		const steamID = getSteamIdFromPath();
+
+		if (steamID) {
+			document.title = `${steamID}'s Steam collage`;
+		}
 		const statusEl = document.getElementById('status');
 		const stageEl = document.getElementById('games-stage');
 		const gamesContainer = document.getElementById('games');
-		const HEADER_WIDTH = 460;
-		const HEADER_HEIGHT = 215;
-		const HEADER_RATIO = HEADER_WIDTH / HEADER_HEIGHT;
-		const TILE_GAP = 12;
-		const SCALE_FLOOR = 0.24;
-		const SCALE_POWER = 0.55;
-		const MAX_SPAN_BASE = 5;
+		const HEADER_ASPECT = 460 / 215;
 		let sourceGames = [];
 		let resizeFrame = 0;
 
 		const px = (value) => Math.round(value * 100) / 100 + 'px';
 
-		const layoutScaledMasonry = (items, width, gap = TILE_GAP) => {
-			if (!items.length || width <= 0) {
-				return { boxes: [], width: Math.max(width, 0), height: 0 };
-			}
+		const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-			const sanitizedGap = Math.max(0, gap);
-			const maxHours = items.reduce((acc, item) => Math.max(acc, item.hours || 0), 0);
-
-			if (maxHours <= 0) {
-				const fallbackWidth = Math.min(HEADER_WIDTH, Math.max(width, 0));
-				const fallbackHeight = fallbackWidth / HEADER_RATIO;
-				const boxes = items.map((_, index) => ({
-					index,
-					x: 0,
-					y: index * (fallbackHeight + sanitizedGap),
-					w: fallbackWidth,
-					h: fallbackHeight,
-				}));
-
-				const totalHeight = boxes.length
-					? boxes[boxes.length - 1].y + boxes[boxes.length - 1].h
-					: 0;
-
+		const computeGridLayout = (items, stageWidth) => {
+			if (!items.length || stageWidth <= 0) {
 				return {
-					boxes,
-					width: fallbackWidth,
-					height: totalHeight,
+					columns: 1,
+					rowHeight: 0,
+					cells: [],
 				};
 			}
 
-			const baseMaxSpan = Math.max(1, Math.round(MAX_SPAN_BASE));
-			const desiredUnit =
-				(HEADER_WIDTH - sanitizedGap * (baseMaxSpan - 1)) / baseMaxSpan;
-			let columns = Math.floor((width + sanitizedGap) / (desiredUnit + sanitizedGap));
+			const TARGET_CARD_WIDTH = 90;
+			const MIN_COLUMNS = 6;
+			const MAX_COLUMNS = 32;
+			const columns = clamp(
+				Math.round(stageWidth / TARGET_CARD_WIDTH),
+				MIN_COLUMNS,
+				Math.min(MAX_COLUMNS, items.length),
+			);
 
-			if (!Number.isFinite(columns) || columns < baseMaxSpan) {
-				columns = baseMaxSpan;
-			}
+			const columnWidth = stageWidth / columns;
+			const rowHeight = columnWidth / HEADER_ASPECT;
 
-			while (columns > 1) {
-				const unitCandidate = (width - (columns - 1) * sanitizedGap) / columns;
-				if (unitCandidate > 0) {
-					break;
-				}
-				columns -= 1;
-			}
+			const hoursMax = items.reduce((max, item) => Math.max(max, item.hours), 0);
+			const logMax = hoursMax > 0 ? Math.log1p(hoursMax) : 1;
 
-			const maxSpan = Math.min(baseMaxSpan, Math.max(columns, 1));
-			const rawUnitWidth =
-				(width - Math.max(0, columns - 1) * sanitizedGap) / Math.max(columns, 1);
-			const maxUnitByHeader =
-				maxSpan > 0
-					? (HEADER_WIDTH - sanitizedGap * (maxSpan - 1)) / maxSpan
-					: rawUnitWidth;
-			const unitWidth = Math.max(1, Math.min(rawUnitWidth, maxUnitByHeader));
-			const layoutWidth =
-				columns * unitWidth + Math.max(0, columns - 1) * sanitizedGap;
-			const offsetX = Math.max(0, (width - layoutWidth) / 2);
-			const maxTileWidth =
-				maxSpan * unitWidth + Math.max(0, maxSpan - 1) * sanitizedGap;
-			const columnHeights = new Array(Math.max(columns, 1)).fill(0);
-			const boxes = [];
+			const computedMaxSpan = Math.floor(columns / 3) + 1;
+			const maxSpan = clamp(computedMaxSpan, 3, Math.min(columns, 6));
+			const minSpan = 1;
 
-			items.forEach((item, index) => {
-				const normalized = Math.max(0, item.hours) / maxHours;
-				const weighted = normalized > 0 ? Math.pow(normalized, SCALE_POWER) : 0;
-				const scale = Math.max(SCALE_FLOOR, weighted);
-				const idealWidth = Math.min(
-					maxTileWidth,
-					Math.max(unitWidth, maxTileWidth * scale),
-				);
-
-				let span = Math.max(
-					1,
-					Math.round((idealWidth + sanitizedGap) / (unitWidth + sanitizedGap)),
-				);
-				span = Math.min(span, maxSpan);
-				span = Math.min(span, columnHeights.length);
-
-				let bestStart = 0;
-				let bestHeight = Number.POSITIVE_INFINITY;
-
-				for (let start = 0; start <= columnHeights.length - span; start++) {
-					let columnHeight = 0;
-					for (let offset = 0; offset < span; offset++) {
-						columnHeight = Math.max(columnHeight, columnHeights[start + offset]);
-					}
-					if (columnHeight < bestHeight) {
-						bestHeight = columnHeight;
-						bestStart = start;
-					}
-				}
-
-				const x = offsetX + bestStart * (unitWidth + sanitizedGap);
-				const tileWidth = span * unitWidth + Math.max(0, span - 1) * sanitizedGap;
-				const tileHeight = tileWidth / HEADER_RATIO;
-				const y = bestHeight;
-
-				for (let offset = 0; offset < span; offset++) {
-					columnHeights[bestStart + offset] = y + tileHeight + sanitizedGap;
-				}
-
-				boxes.push({
-					index,
-					x,
-					y,
-					w: tileWidth,
-					h: tileHeight,
-				});
+			const cells = items.map((item, index) => {
+				const normalized = item.hours > 0 ? Math.log1p(item.hours) / logMax : 0;
+				const weighted = Math.pow(normalized, 0.8);
+				const area = 1 + weighted * (maxSpan * maxSpan - 1);
+				const span = clamp(Math.round(Math.sqrt(area)), minSpan, maxSpan);
+				return { id: item.id, span, order: index };
 			});
 
-			const layoutHeight =
-				boxes.length > 0
-					? Math.max(...columnHeights) - sanitizedGap
-					: 0;
+			// Ensure the very first items stand out slightly more.
+			if (cells.length && maxSpan > 1) {
+				cells[0].span = maxSpan;
+				if (cells[1]) {
+					cells[1].span = clamp(cells[1].span + 1, minSpan + 1, maxSpan - 1);
+				}
+				if (cells[2]) {
+					cells[2].span = Math.max(cells[2].span, Math.min(maxSpan - 1, minSpan + 1));
+				}
+			}
 
-			return {
-				boxes,
-				width: width,
-				height: Math.max(0, layoutHeight),
-			};
+			return { columns, rowHeight, cells };
 		};
 
 		const getStageDimensions = () => {
@@ -270,10 +217,10 @@
 			const style = stageEl ? window.getComputedStyle(stageEl) : null;
 			const paddingX = style
 				? parseFloat(style.paddingLeft || '0') + parseFloat(style.paddingRight || '0')
-				: 48;
+				: 0;
 			const paddingY = style
 				? parseFloat(style.paddingTop || '0') + parseFloat(style.paddingBottom || '0')
-				: 48;
+				: 0;
 
 			const innerWidth = Math.max((rect?.width || window.innerWidth || 0) - paddingX, 1);
 			const innerHeight = Math.max((rect?.height || window.innerHeight || 0) - paddingY, 1);
@@ -300,38 +247,34 @@
 				return;
 			}
 
-			const { width } = getStageDimensions();
+			const { width: stageWidth } = getStageDimensions();
 
 			const items = playable.map((game) => ({
 				id: game.appid,
 				hours: Math.max(game.playtime_forever ?? 0, 0) / 60,
 			}));
 
-			const { boxes, width: layoutWidth, height: layoutHeight } = layoutScaledMasonry(
-				items,
-				width,
-				TILE_GAP,
-			);
+			const layout = computeGridLayout(items, stageWidth);
 
-			if (!boxes.length) {
+			if (!layout.cells.length || layout.rowHeight <= 0) {
 				statusEl?.classList.add('error');
 				statusEl?.classList.remove('hidden');
 				return;
 			}
 
+			const gameById = new Map(playable.map((game) => [game.appid, game]));
 			const fragment = document.createDocumentFragment();
 
-			for (const box of boxes) {
-				const game = playable[box.index];
+			for (const cell of layout.cells) {
+				const game = gameById.get(cell.id);
 				if (!game) {
 					continue;
 				}
 
 				const card = document.createElement('article');
 				card.className = 'game-card';
-				card.style.width = px(box.w);
-				card.style.height = px(box.h);
-				card.style.transform = `translate3d(${px(box.x)}, ${px(box.y)}, 0)`;
+				card.style.gridColumn = `span ${cell.span}`;
+				card.style.gridRow = `span ${cell.span}`;
 
 				const img = document.createElement('img');
 				img.loading = 'eager';
@@ -343,8 +286,8 @@
 				fragment.append(card);
 			}
 
-			gamesContainer.style.width = px(Math.max(layoutWidth, width));
-			gamesContainer.style.height = px(layoutHeight);
+			gamesContainer.style.setProperty('--columns', String(layout.columns));
+			gamesContainer.style.setProperty('--row-size', px(layout.rowHeight));
 			gamesContainer.replaceChildren(fragment);
 			statusEl?.classList.remove('error');
 			statusEl?.classList.add('hidden');
@@ -373,25 +316,32 @@
 			console.error(message);
 			statusEl?.classList.add('error');
 			statusEl?.classList.remove('hidden');
+			if (statusEl) {
+				statusEl.textContent = message;
+			}
 		};
 
-		try {
-			const response = await fetch(`/api/playtime/${encodeURIComponent(steamID)}`, {
-				headers: {
-					Accept: 'application/json',
-				},
-			});
+		if (!steamID) {
+			showError('Add a SteamID to the URL (e.g. /76561198000000000) to view your collage.');
+		} else {
+			try {
+				const response = await fetch(`/api/playtime/${encodeURIComponent(steamID)}`, {
+					headers: {
+						Accept: 'application/json',
+					},
+				});
 
-			if (!response.ok) {
-				const errorBody = await response.json().catch(() => ({}));
-				throw new Error(errorBody.error || 'Failed to load playtime data.');
+				if (!response.ok) {
+					const errorBody = await response.json().catch(() => ({}));
+					throw new Error(errorBody.error || 'Failed to load playtime data.');
+				}
+
+				const payload = await response.json();
+				renderGames(payload.games ?? []);
+			} catch (error) {
+				console.error(error);
+				showError('We could not load the playtime data. Double-check the SteamID or try again soon.');
 			}
-
-			const payload = await response.json();
-			renderGames(payload.games ?? []);
-		} catch (error) {
-			console.error(error);
-			showError('We could not load the playtime data. Double-check the SteamID or try again soon.');
 		}
 	</script>
 </body>

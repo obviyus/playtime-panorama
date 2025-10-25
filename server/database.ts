@@ -88,10 +88,6 @@ export async function getCachedPlaytimePayload(
 	const isExpired = nowSeconds() - row.fetched_at > PLAYTIME_TTL_SECONDS;
 
 	if (isExpired) {
-		await sql`
-			DELETE FROM playtime_cache
-			WHERE steam_id = ${steamId}
-		`;
 		return null;
 	}
 

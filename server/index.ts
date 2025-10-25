@@ -40,7 +40,9 @@ const server = Bun.serve({
 					resolvedSteamID = await getVanityResolution(identifier);
 				} catch (error) {
 					if (error instanceof SteamIdentifierError) {
-						console.error(error);
+						console.warn(
+							`Steam vanity resolution failed for "${identifier}": ${error.message}`,
+						);
 						return Response.json(
 							{ error: error.message },
 							{ status: error.status },

@@ -38,6 +38,54 @@
 			box-sizing: border-box;
 		}
 
+		.download-actions {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: clamp(2.5rem, 4vw, 4rem) clamp(1.25rem, 3vw, 2.25rem) clamp(3rem, 6vw, 5rem);
+		}
+
+		.download-button {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.4rem;
+			padding: 0.65rem 1.1rem;
+			font: inherit;
+			font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+			color: #f5f7ff;
+			background: rgba(33, 40, 72, 0.75);
+			border: 1px solid rgba(103, 118, 182, 0.6);
+			border-radius: 999px;
+			box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+			backdrop-filter: blur(12px);
+			cursor: pointer;
+			transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease,
+				border-color 160ms ease;
+		}
+
+		.download-button:hover:not(:disabled),
+		.download-button:focus-visible:not(:disabled) {
+			transform: translateY(-1px);
+			background: rgba(64, 80, 140, 0.85);
+			border-color: rgba(159, 175, 255, 0.7);
+			box-shadow: 0 10px 18px rgba(0, 0, 0, 0.35);
+		}
+
+		.download-button:focus-visible {
+			outline: none;
+			box-shadow: 0 0 0 2px rgba(23, 102, 255, 0.6);
+		}
+
+		.download-button:disabled {
+			cursor: not-allowed;
+			opacity: 0.6;
+			transform: none;
+			box-shadow: none;
+			background: rgba(33, 40, 72, 0.5);
+			border-color: rgba(103, 118, 182, 0.35);
+		}
+
 		.games-stage {
 			position: relative;
 			width: 100%;
@@ -172,6 +220,11 @@
 		<div class="games-stage" id="games-stage">
 			<section class="games-grid" id="games"></section>
 		</div>
+		<div class="download-actions">
+			<button type="button" id="download-button" class="download-button" disabled>
+				Download mosaic
+			</button>
+		</div>
 	</main>
 	<script type="module">
 		const STEAM_CDN_BASE = "https://cdn.steamstatic.com/steam/apps";
@@ -196,9 +249,219 @@
 		const statusEl = document.getElementById('status');
 		const stageEl = document.getElementById('games-stage');
 		const gamesContainer = document.getElementById('games');
+		const downloadButton = document.getElementById('download-button');
+		const DOWNLOAD_LABEL_DEFAULT = 'Download mosaic';
+		const DOWNLOAD_LABEL_BUSY = 'Preparing...';
+		const DOWNLOAD_LABEL_ERROR = 'Download failed — retry';
 		const HEADER_ASPECT = 460 / 215;
 		let sourceGames = [];
 		let resizeFrame = 0;
+		let downloadInProgress = false;
+		const imageAssetCache = new Map();
+
+		const setDownloadState = (state) => {
+			if (!downloadButton) {
+				return;
+			}
+
+			switch (state) {
+				case 'ready': {
+					downloadButton.disabled = false;
+					downloadButton.textContent = DOWNLOAD_LABEL_DEFAULT;
+					downloadButton.dataset.state = 'ready';
+					break;
+				}
+				case 'busy': {
+					downloadButton.disabled = true;
+					downloadButton.textContent = DOWNLOAD_LABEL_BUSY;
+					downloadButton.dataset.state = 'busy';
+					break;
+				}
+				case 'error': {
+					downloadButton.disabled = false;
+					downloadButton.textContent = DOWNLOAD_LABEL_ERROR;
+					downloadButton.dataset.state = 'error';
+					break;
+				}
+				default: {
+					downloadButton.disabled = true;
+					downloadButton.textContent = DOWNLOAD_LABEL_DEFAULT;
+					downloadButton.dataset.state = 'disabled';
+				}
+			}
+		};
+
+		setDownloadState('disabled');
+
+		const fetchImageAsset = async (url) => {
+			if (!url) {
+				throw new Error('Missing image source URL.');
+			}
+			if (imageAssetCache.has(url)) {
+				return imageAssetCache.get(url);
+			}
+
+			const task = (async () => {
+				try {
+					const response = await fetch(url, { mode: 'cors', credentials: 'omit' });
+					if (!response.ok) {
+						throw new Error(`Failed to load image asset (${response.status}).`);
+					}
+					const blob = await response.blob();
+					if (typeof createImageBitmap === 'function') {
+						return await createImageBitmap(blob);
+					}
+					return await new Promise((resolve, reject) => {
+						const image = new Image();
+						const objectUrl = URL.createObjectURL(blob);
+						image.crossOrigin = 'anonymous';
+						image.onload = () => {
+							URL.revokeObjectURL(objectUrl);
+							resolve(image);
+						};
+						image.onerror = (event) => {
+							URL.revokeObjectURL(objectUrl);
+							reject(event?.error || new Error('Failed to decode image asset.'));
+						};
+						image.src = objectUrl;
+					});
+				} catch (error) {
+					imageAssetCache.delete(url);
+					throw error;
+				}
+			})();
+
+			imageAssetCache.set(url, task);
+			return task;
+		};
+
+		const downloadMosaicImage = async () => {
+			if (!gamesContainer) {
+				return;
+			}
+
+			const cards = Array.from(gamesContainer.querySelectorAll('.game-card'));
+			if (!cards.length) {
+				setDownloadState('disabled');
+				throw new Error('No games were found to export.');
+			}
+
+			const containerRect = gamesContainer.getBoundingClientRect();
+			const width = Math.round(containerRect.width);
+			const height = Math.round(containerRect.height);
+
+			if (width <= 0 || height <= 0) {
+				throw new Error('The mosaic is not ready to export.');
+			}
+
+			const pixelRatio = window.devicePixelRatio || 1;
+			const exportScale = Math.min(4, Math.max(2, Math.ceil(pixelRatio * 2)));
+			const maxDimension = 8192;
+			const safeScale = Math.min(
+				exportScale,
+				maxDimension / Math.max(width, 1),
+				maxDimension / Math.max(height, 1),
+			);
+			const scale = Math.max(1, safeScale);
+			const canvasWidth = Math.max(1, Math.round(width * scale));
+			const canvasHeight = Math.max(1, Math.round(height * scale));
+
+			const canvas = document.createElement('canvas');
+			canvas.width = canvasWidth;
+			canvas.height = canvasHeight;
+			const context = canvas.getContext('2d');
+
+			if (!context) {
+				throw new Error('Canvas is not supported in this browser.');
+			}
+
+			context.fillStyle = '#05060f';
+			context.fillRect(0, 0, canvasWidth, canvasHeight);
+
+			for (const card of cards) {
+				const img = card.querySelector('img');
+				if (!img || (!img.currentSrc && !img.src)) {
+					continue;
+				}
+				const rect = card.getBoundingClientRect();
+				const drawWidth = rect.width;
+				const drawHeight = rect.height;
+				if (drawWidth <= 0 || drawHeight <= 0) {
+					continue;
+				}
+
+				const left = rect.left - containerRect.left;
+				const top = rect.top - containerRect.top;
+				const sourceUrl = img.currentSrc || img.src;
+				const asset = await fetchImageAsset(sourceUrl);
+
+				context.drawImage(
+					asset,
+					left * scale,
+					top * scale,
+					drawWidth * scale,
+					drawHeight * scale,
+				);
+			}
+
+			const blob = await new Promise((resolve, reject) => {
+				canvas.toBlob(
+					(result) => {
+						if (result) {
+							resolve(result);
+						} else {
+							reject(new Error('Failed to export the mosaic image.'));
+						}
+					},
+					'image/png',
+					0.98,
+				);
+			});
+
+			const steamLabel = steamID ? steamID.trim().replace(/[^\w.-]+/g, '-') : '';
+			const filename = `${steamLabel || 'playtime-panorama'}-mosaic.png`;
+			const objectUrl = URL.createObjectURL(blob);
+
+			const link = document.createElement('a');
+			link.href = objectUrl;
+			link.download = filename;
+			document.body.append(link);
+			link.click();
+			link.remove();
+
+			setTimeout(() => {
+				URL.revokeObjectURL(objectUrl);
+			}, 4000);
+		};
+
+		const handleDownloadClick = async (event) => {
+			event?.preventDefault();
+			if (downloadInProgress) {
+				return;
+			}
+
+			downloadInProgress = true;
+			setDownloadState('busy');
+			try {
+				await downloadMosaicImage();
+				setDownloadState('ready');
+			} catch (error) {
+				console.error(error);
+				if (error instanceof Error && error.message.includes('No games')) {
+					setDownloadState('disabled');
+				} else {
+					setDownloadState('error');
+				}
+			} finally {
+				downloadInProgress = false;
+			}
+		};
+
+		if (downloadButton) {
+			downloadButton.addEventListener('click', (event) => {
+				void handleDownloadClick(event);
+			});
+		}
 
 		const px = (value) => Math.round(value * 100) / 100 + 'px';
 
@@ -371,6 +634,7 @@
 				statusEl?.classList.add('error');
 				statusEl?.classList.remove('hidden');
 				gamesContainer.replaceChildren();
+				setDownloadState('disabled');
 				return;
 			}
 
@@ -386,6 +650,7 @@
 			if (!layout.cells.length || layout.rowHeight <= 0) {
 				statusEl?.classList.add('error');
 				statusEl?.classList.remove('hidden');
+				setDownloadState('disabled');
 				return;
 			}
 
@@ -426,6 +691,7 @@
 			if (statusEl) {
 				statusEl.textContent = '';
 			}
+			setDownloadState('ready');
 		};
 
 		const showLoader = () => {
@@ -435,11 +701,13 @@
 			if (statusEl) {
 				statusEl.textContent = '';
 			}
+			setDownloadState('disabled');
 		};
 
 		const renderGames = (games) => {
 			sourceGames = Array.isArray(games) ? games : [];
 			if (!sourceGames.length) {
+				setDownloadState('disabled');
 				showError('No playtime data found for this SteamID or username.');
 				return;
 			}
@@ -463,6 +731,7 @@
 				statusEl.classList.add('has-message');
 				statusEl.textContent = message;
 			}
+			setDownloadState('disabled');
 		};
 
 		if (!steamID) {

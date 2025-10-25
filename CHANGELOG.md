@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/obviyus/playtime-panorama/compare/v1.2.0...v1.2.1) (2025-10-25)
+
+
+### Bug Fixes
+
+* re-use downloaded assets ([1449cba](https://github.com/obviyus/playtime-panorama/commit/1449cbaa63200573e2e2641b43327dbc60d0725c))
+
 # [1.2.0](https://github.com/obviyus/playtime-panorama/compare/v1.1.0...v1.2.0) (2025-10-25)
 
 

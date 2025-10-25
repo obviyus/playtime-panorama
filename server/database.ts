@@ -33,6 +33,13 @@ const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 const normalizeVanity = (value: string) => value.trim().toLowerCase();
 
+async function deletePlaytimeCacheEntry(steamId: string) {
+	await sql`
+		DELETE FROM playtime_cache
+		WHERE steam_id = ${steamId}
+	`;
+}
+
 export async function getCachedVanityResolution(vanity: string) {
 	const normalized = normalizeVanity(vanity);
 	if (!normalized) {
@@ -92,13 +99,17 @@ export async function getCachedPlaytimePayload(
 	}
 
 	try {
-		return JSON.parse(row.payload) as CachedPlaytimePayload;
+		const payload = JSON.parse(row.payload) as CachedPlaytimePayload;
+
+		if (!payload.game_count) {
+			await deletePlaytimeCacheEntry(steamId);
+			return null;
+		}
+
+		return payload;
 	} catch (error) {
 		console.error("Failed to parse cached playtime payload", error);
-		await sql`
-			DELETE FROM playtime_cache
-			WHERE steam_id = ${steamId}
-		`;
+		await deletePlaytimeCacheEntry(steamId);
 		return null;
 	}
 }
@@ -107,6 +118,11 @@ export async function cachePlaytimePayload(
 	steamId: string,
 	payload: CachedPlaytimePayload,
 ) {
+	if (!payload.game_count) {
+		await deletePlaytimeCacheEntry(steamId);
+		return;
+	}
+
 	const serialized = JSON.stringify(payload);
 	const timestamp = nowSeconds();
 

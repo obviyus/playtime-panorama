@@ -152,6 +152,10 @@ async function fetchPlaytimeFromSteam(
 		games,
 	};
 
+	if (payload.game_count === 0) {
+		return payload;
+	}
+
 	await cachePlaytimePayload(steamID, payload);
 
 	return payload;

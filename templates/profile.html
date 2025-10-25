@@ -174,18 +174,29 @@
 			const logMax = hoursMax > 0 ? Math.log1p(hoursMax) : 1;
 
 			const TARGET_CARD_WIDTH = 44;
-			const MIN_COLUMNS = Math.max(10, Math.ceil(Math.sqrt(items.length)));
-			const MAX_COLUMNS = Math.max(MIN_COLUMNS, Math.min(72, items.length));
-			const maxHeight = Math.max(stageHeight || 0, window.innerHeight || 0, 480);
+			const MAX_CARD_WIDTH = 240;
+			const minColumnsBound = Math.max(
+				4,
+				Math.ceil(stageWidth / MAX_CARD_WIDTH),
+			);
+			const maxColumnsBound = Math.max(minColumnsBound, Math.min(72, items.length));
+			const stageBaseHeight =
+				stageHeight && stageHeight > 0 ? stageHeight : (window.innerHeight || 0);
+			const maxHeight = Math.max(stageBaseHeight || 0, 480);
+			const targetHeight =
+				stageBaseHeight && stageBaseHeight > 0
+					? stageBaseHeight * 0.94
+					: maxHeight;
 
 			let columns = clamp(
 				Math.round(stageWidth / TARGET_CARD_WIDTH),
-				MIN_COLUMNS,
-				Math.min(MAX_COLUMNS, items.length),
+				minColumnsBound,
+				maxColumnsBound,
 			);
 
 			let layout = { columns, rowHeight: 0, cells: [] };
-			const MAX_ITERATIONS = 4;
+			let bestLayout = null;
+			const MAX_ITERATIONS = 8;
 			const weightBias = 0.1;
 			const weightExponent = 0.62;
 			const disparityCurve = 1.35;
@@ -194,7 +205,7 @@
 				const columnWidth = stageWidth / columns;
 				const rowHeight = Math.max(columnWidth / HEADER_ASPECT, 10);
 				const computedMaxSpan = Math.floor(columns / 6) + 3;
-				const maxSpan = clamp(computedMaxSpan, 4, Math.min(columns, 10));
+				const maxSpan = clamp(computedMaxSpan, 4, Math.min(columns, 12));
 				const minSpan = 1;
 				const maxArea = maxSpan * maxSpan;
 
@@ -232,28 +243,54 @@
 				const approxHeight =
 					(totalArea * stageWidth) / (columns * columns * HEADER_ASPECT);
 
-				if (
-					approxHeight > maxHeight &&
-					columns < Math.min(MAX_COLUMNS, items.length)
-				) {
+				const maxColumnsAllowed = maxColumnsBound;
+				const candidateLayout = { columns, rowHeight, cells };
+
+				if (approxHeight > maxHeight * 1.02 && columns < maxColumnsAllowed) {
 					const requiredColumns = clamp(
-						Math.ceil(
+						Math.round(
 							Math.sqrt(
 								(totalArea * stageWidth) / (maxHeight * HEADER_ASPECT),
 							),
 						),
 						columns + 1,
-						Math.min(MAX_COLUMNS, items.length),
+						maxColumnsAllowed,
 					);
 
 					if (requiredColumns !== columns) {
+						bestLayout = candidateLayout;
 						columns = requiredColumns;
 						continue;
 					}
 				}
 
-				layout = { columns, rowHeight, cells };
+				if (
+					stageBaseHeight > 0 &&
+					approxHeight < targetHeight * 0.82 &&
+					columns > minColumnsBound
+				) {
+					const desiredColumns = clamp(
+						Math.round(
+							Math.sqrt(
+								(totalArea * stageWidth) / (targetHeight * HEADER_ASPECT),
+							),
+						),
+						minColumnsBound,
+						columns - 1,
+					);
+					if (desiredColumns !== columns) {
+						bestLayout = candidateLayout;
+						columns = desiredColumns;
+						continue;
+					}
+				}
+
+				layout = candidateLayout;
 				break;
+			}
+
+			if ((!layout.cells.length || layout.rowHeight <= 0) && bestLayout) {
+				layout = bestLayout;
 			}
 
 			return layout;

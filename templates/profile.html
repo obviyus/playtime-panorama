@@ -229,6 +229,11 @@
 	<script type="module">
 		const STEAM_CDN_BASE = "https://cdn.steamstatic.com/steam/apps";
 
+		const STEAM_ID64_PATTERN = /^\d{17}$/;
+
+		const isSteamId64 = (value) =>
+			typeof value === 'string' && STEAM_ID64_PATTERN.test(value.trim());
+
 		const getSteamIdFromPath = () => {
 			const raw = window.location.pathname.slice(1);
 			if (!raw) {
@@ -241,10 +246,14 @@
 			}
 		};
 
-		const steamID = getSteamIdFromPath();
+		let submittedIdentifier = getSteamIdFromPath();
+		let resolvedSteamId64 = isSteamId64(submittedIdentifier)
+			? submittedIdentifier
+			: null;
+		let displayIdentifier = submittedIdentifier;
 
-		if (steamID) {
-			document.title = `${steamID}'s Playtime Panorama`;
+		if (displayIdentifier) {
+			document.title = `${displayIdentifier}'s Playtime Panorama`;
 		}
 		const statusEl = document.getElementById('status');
 		const stageEl = document.getElementById('games-stage');
@@ -436,7 +445,10 @@
 				);
 			});
 
-			const steamLabel = steamID ? steamID.trim().replace(/[^\w.-]+/g, '-') : '';
+			const labelSource = resolvedSteamId64 ?? displayIdentifier ?? '';
+			const steamLabel = labelSource
+				? labelSource.trim().replace(/[^\w.-]+/g, '-')
+				: '';
 			const filename = `${steamLabel || 'playtime-panorama'}-mosaic.png`;
 			const objectUrl = URL.createObjectURL(blob);
 
@@ -730,7 +742,7 @@
 			sourceGames = Array.isArray(games) ? games : [];
 			if (!sourceGames.length) {
 				setDownloadState('disabled');
-				showError('No playtime data found for this SteamID or username.');
+				showError('No playtime data is available. If this is your profile, make sure your Steam Game Details privacy is set to Public.');
 				return;
 			}
 			placeGames();
@@ -756,12 +768,13 @@
 			setDownloadState('disabled');
 		};
 
-		if (!steamID) {
+		if (!submittedIdentifier) {
 			showError('Add a SteamID or username to the URL (e.g. /76561198000000000 or /obviyus) to view your collage.');
 		} else {
 			try {
 				showLoader();
-				const response = await fetch(`/api/playtime/${encodeURIComponent(steamID)}`, {
+				const lookupIdentifier = submittedIdentifier;
+				const response = await fetch(`/api/playtime/${encodeURIComponent(lookupIdentifier)}`, {
 					headers: {
 						Accept: 'application/json',
 					},
@@ -769,14 +782,68 @@
 
 				if (!response.ok) {
 					const errorBody = await response.json().catch(() => ({}));
-					throw new Error(errorBody.error || 'Failed to load playtime data.');
+					const clientError = new Error(
+						typeof errorBody?.error === 'string'
+							? errorBody.error
+							: 'Failed to load playtime data.',
+					);
+					Object.assign(clientError, {
+						status: response.status,
+					});
+					throw clientError;
 				}
 
 				const payload = await response.json();
+				if (payload && typeof payload === 'object') {
+					const canonicalId =
+						typeof payload.steamID === 'string' && isSteamId64(payload.steamID)
+							? payload.steamID
+							: null;
+					if (canonicalId) {
+						resolvedSteamId64 = canonicalId;
+					}
+
+					const resolvedFrom =
+						typeof payload.resolvedFrom === 'string'
+							? payload.resolvedFrom.trim()
+							: '';
+					const nextDisplay =
+						resolvedFrom || resolvedSteamId64 || displayIdentifier || '';
+					if (nextDisplay && nextDisplay !== displayIdentifier) {
+						displayIdentifier = nextDisplay;
+						document.title = `${displayIdentifier}'s Playtime Panorama`;
+					} else if (!displayIdentifier && nextDisplay) {
+						displayIdentifier = nextDisplay;
+						document.title = `${displayIdentifier}'s Playtime Panorama`;
+					}
+				}
 				renderGames(payload.games ?? []);
 			} catch (error) {
 				console.error(error);
-				showError('We could not load the playtime data. Double-check the SteamID or username, or try again soon.');
+				const status =
+					typeof error === 'object' && error !== null && 'status' in error
+						? Number(error.status)
+						: null;
+				const errorMessage = error instanceof Error ? error.message : '';
+				const normalizedMessage = errorMessage.toLowerCase();
+				let message =
+					"We couldn't load the playtime data. If this is your profile, make sure your Steam Game Details privacy is set to Public and try again.";
+
+				if (status === 404) {
+					message =
+						"We couldn't find a Steam profile with that identifier. Use the ID from your profile URL (steamcommunity.com/id/... or /profiles/...) or the full SteamID64.";
+				} else if (status === 403 || normalizedMessage.includes('403')) {
+					message =
+						"This Steam profile keeps its game details private. Update privacy settings to Public and try again.";
+				} else if (
+					errorMessage &&
+					!normalizedMessage.includes('failed to load playtime data') &&
+					!normalizedMessage.includes('unable to fetch playtime data')
+				) {
+					message = errorMessage;
+				}
+
+				showError(message);
 			}
 		}
 	</script>

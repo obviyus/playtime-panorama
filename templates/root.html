@@ -102,6 +102,42 @@
 			box-shadow: 0 10px 20px rgba(255, 255, 255, 0.2);
 		}
 
+		.identity-hint {
+			margin-top: 0.25rem;
+			color: #a7a7a7;
+			font-size: 0.95rem;
+			line-height: 1.5;
+		}
+
+		.identity-hint code {
+			color: #f5f5f5;
+		}
+
+		.privacy-tip {
+			margin-top: 1.5rem;
+			padding: 1.25rem;
+			border-radius: 0.75rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: linear-gradient(145deg, rgba(22, 22, 22, 0.9), rgba(10, 10, 10, 0.8));
+		}
+
+		.privacy-tip p {
+			margin: 0 0 0.85rem;
+			color: #dddddd;
+			font-weight: 600;
+			letter-spacing: -0.01em;
+		}
+
+		.privacy-tip ol {
+			margin: 0;
+			padding-left: 1.25rem;
+			color: #a7a7a7;
+		}
+
+		.privacy-tip li+li {
+			margin-top: 0.5rem;
+		}
+
 		small {
 			display: block;
 			margin-top: 0.35rem;
@@ -133,16 +169,30 @@
 	<main>
 		<h1>Build your playtime panorama</h1>
 		<p>Drop in a SteamID64 or Steam username to generate a wall of cover art scaled by how many minutes you've
-			played.
-			It's a quick way to see where your hours really went.</p>
+			played. Make sure your Steam Game Details privacy is set to
+			Public so the playtime data can load.</p>
 		<form id="steam-form">
 			<label for="steam-id">
 				SteamID64 or username
-				<small>Examples: obviyus or 76561198814583839. Profile URLs work too.</small>
+				<small>Examples: obviyus, 76561198814583839, or https://steamcommunity.com/id/obviyus.</small>
 			</label>
-			<input id="steam-id" name="steam-id" placeholder="obviyus or 7656..." required autocomplete="off" />
+			<input id="steam-id" name="steam-id" placeholder="obviyus" required autocomplete="off" />
 			<button type="submit">Show my games</button>
 		</form>
+		<p class="identity-hint">
+			Tip: Use the ID from your Steam profile URL (the part after <code>steamcommunity.com/id/</code> or
+			<code>/profiles/</code>).
+			Display names with emojis or punctuation will not resolve.
+		</p>
+		<div class="privacy-tip">
+			<p>Your Steam profile and playtime must be public for this to work.</p>
+			<ol>
+				<li>Visit your Steam profile in a browser and choose <strong>Edit Profile</strong>.</li>
+				<li>Open <strong>My privacy settings</strong>.</li>
+				<li>Set <strong>Game details</strong> to <strong>Public</strong> and uncheck “Always keep my total
+					playtime private even if users can see my game details.”</li>
+			</ol>
+		</div>
 	</main>
 	<script>
 		const form = document.getElementById('steam-form');

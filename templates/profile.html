@@ -57,6 +57,8 @@
 			background: radial-gradient(circle at center, rgba(10, 12, 22, 0.55), rgba(6, 8, 16, 0.85));
 			transition: opacity 220ms ease, visibility 220ms ease;
 			z-index: 20;
+			text-align: center;
+			padding: 1.25rem;
 		}
 
 		#status::after {
@@ -81,6 +83,10 @@
 		#status.error::after {
 			border-color: rgba(255, 126, 142, 0.25);
 			border-top-color: rgba(255, 126, 142, 0.9);
+		}
+
+		#status.has-message::after {
+			display: none;
 		}
 
 		.games-grid {
@@ -415,14 +421,26 @@
 			gamesContainer.style.setProperty('--row-size', px(layout.rowHeight));
 			gamesContainer.replaceChildren(fragment);
 			statusEl?.classList.remove('error');
+			statusEl?.classList.remove('has-message');
 			statusEl?.classList.add('hidden');
+			if (statusEl) {
+				statusEl.textContent = '';
+			}
+		};
+
+		const showLoader = () => {
+			statusEl?.classList.remove('error');
+			statusEl?.classList.remove('has-message');
+			statusEl?.classList.remove('hidden');
+			if (statusEl) {
+				statusEl.textContent = '';
+			}
 		};
 
 		const renderGames = (games) => {
 			sourceGames = Array.isArray(games) ? games : [];
 			if (!sourceGames.length) {
-				statusEl?.classList.add('error');
-				statusEl?.classList.remove('hidden');
+				showError('No playtime data found for this SteamID or username.');
 				return;
 			}
 			placeGames();
@@ -442,14 +460,16 @@
 			statusEl?.classList.add('error');
 			statusEl?.classList.remove('hidden');
 			if (statusEl) {
+				statusEl.classList.add('has-message');
 				statusEl.textContent = message;
 			}
 		};
 
 		if (!steamID) {
-			showError('Add a SteamID to the URL (e.g. /76561198000000000) to view your collage.');
+			showError('Add a SteamID or username to the URL (e.g. /76561198000000000 or /obviyus) to view your collage.');
 		} else {
 			try {
+				showLoader();
 				const response = await fetch(`/api/playtime/${encodeURIComponent(steamID)}`, {
 					headers: {
 						Accept: 'application/json',
@@ -465,7 +485,7 @@
 				renderGames(payload.games ?? []);
 			} catch (error) {
 				console.error(error);
-				showError('We could not load the playtime data. Double-check the SteamID or try again soon.');
+				showError('We could not load the playtime data. Double-check the SteamID or username, or try again soon.');
 			}
 		}
 	</script>

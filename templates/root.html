@@ -100,27 +100,52 @@
 <body>
 	<main>
 		<h1>Build your playtime collage</h1>
-		<p>Drop in a SteamID64 to generate a wall of cover art scaled by how many minutes you've played. It's a quick
-			way to see where your hours really went.</p>
+		<p>Drop in a SteamID64 or Steam username to generate a wall of cover art scaled by how many minutes you've
+			played.
+			It's a quick way to see where your hours really went.</p>
 		<form id="steam-form">
 			<label for="steam-id">
-				SteamID64
-				<small>Example: 76561198814583839</small>
+				SteamID64 or username
+				<small>Examples: obviyus or 76561198814583839. Profile URLs work too.</small>
 			</label>
-			<input id="steam-id" name="steam-id" placeholder="7656..." required pattern="\d{17}" inputmode="numeric" />
+			<input id="steam-id" name="steam-id" placeholder="obviyus or 7656..." required autocomplete="off" />
 			<button type="submit">Show my games</button>
 		</form>
 	</main>
 	<script>
 		const form = document.getElementById('steam-form');
 
+		const normalizeSteamIdentifier = (raw) => {
+			if (typeof raw !== 'string') {
+				return '';
+			}
+
+			const trimmed = raw.trim();
+			if (!trimmed) {
+				return '';
+			}
+
+			if (trimmed.includes('steamcommunity.com')) {
+				const vanityMatch = trimmed.match(/steamcommunity\.com\/(?:id|profiles)\/([^/?#]+)/i);
+				if (vanityMatch && vanityMatch[1]) {
+					try {
+						return decodeURIComponent(vanityMatch[1]);
+					} catch {
+						return vanityMatch[1];
+					}
+				}
+			}
+
+			return trimmed.replace(/^\/+/, '').replace(/\/$/, '');
+		};
+
 		form?.addEventListener('submit', event => {
 			event.preventDefault();
 			const formData = new FormData(form);
-			const targetId = formData.get('steam-id');
+			const targetId = normalizeSteamIdentifier(formData.get('steam-id'));
 
-			if (typeof targetId === 'string' && targetId.trim().length) {
-				const url = '/' + encodeURIComponent(targetId.trim());
+			if (targetId) {
+				const url = '/' + encodeURIComponent(targetId);
 				window.location.assign(url);
 			}
 		});

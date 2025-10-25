@@ -173,9 +173,9 @@
 			const hoursMax = items.reduce((max, item) => Math.max(max, item.hours), 0);
 			const logMax = hoursMax > 0 ? Math.log1p(hoursMax) : 1;
 
-			const TARGET_CARD_WIDTH = 46;
-			const MIN_COLUMNS = Math.max(8, Math.ceil(Math.sqrt(items.length)));
-			const MAX_COLUMNS = Math.max(MIN_COLUMNS, Math.min(60, items.length));
+			const TARGET_CARD_WIDTH = 44;
+			const MIN_COLUMNS = Math.max(10, Math.ceil(Math.sqrt(items.length)));
+			const MAX_COLUMNS = Math.max(MIN_COLUMNS, Math.min(72, items.length));
 			const maxHeight = Math.max(stageHeight || 0, window.innerHeight || 0, 480);
 
 			let columns = clamp(
@@ -190,25 +190,33 @@
 			for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
 				const columnWidth = stageWidth / columns;
 				const rowHeight = Math.max(columnWidth / HEADER_ASPECT, 10);
-				const computedMaxSpan = Math.floor(columns / 4) + 1;
-				const maxSpan = clamp(computedMaxSpan, 3, Math.min(columns, 6));
+				const computedMaxSpan = Math.floor(columns / 6) + 3;
+				const maxSpan = clamp(computedMaxSpan, 4, Math.min(columns, 10));
 				const minSpan = 1;
 
 				const cells = items.map((item, index) => {
 					const normalized = item.hours > 0 ? Math.log1p(item.hours) / logMax : 0;
-					const weighted = Math.pow(normalized, 0.8);
-					const area = 1 + weighted * (maxSpan * maxSpan - 1);
-					const span = clamp(Math.round(Math.sqrt(area)), minSpan, maxSpan);
+					const weighted = Math.pow(normalized, 1.6);
+					const spanValue = 1 + weighted * (maxSpan - 1);
+					const span = clamp(Math.round(spanValue), minSpan, maxSpan);
 					return { id: item.id, span, order: index };
 				});
 
 				if (cells.length && maxSpan > 1) {
 					cells[0].span = maxSpan;
 					if (cells[1]) {
-						cells[1].span = clamp(cells[1].span + 1, minSpan + 1, maxSpan - 1);
+						cells[1].span = clamp(
+							Math.max(cells[1].span, maxSpan - 1),
+							minSpan + 1,
+							maxSpan - 1,
+						);
 					}
 					if (cells[2]) {
-						cells[2].span = Math.max(cells[2].span, Math.min(maxSpan - 1, minSpan + 1));
+						cells[2].span = clamp(
+							Math.max(cells[2].span, maxSpan - 2),
+							minSpan + 1,
+							maxSpan - 2,
+						);
 					}
 				}
 

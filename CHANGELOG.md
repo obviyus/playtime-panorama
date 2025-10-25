@@ -1,3 +1,11 @@
+## [1.2.3](https://github.com/obviyus/playtime-panorama/compare/v1.2.2...v1.2.3) (2025-10-25)
+
+
+### Bug Fixes
+
+* don't delete expired cache rows ([0d078d9](https://github.com/obviyus/playtime-panorama/commit/0d078d953a9a9546ccff26fd012686aec0fd00f5))
+* warn when profile not found ([7c8e90d](https://github.com/obviyus/playtime-panorama/commit/7c8e90dffef03d11cc1318171d900572bb61f5a5))
+
 ## [1.2.2](https://github.com/obviyus/playtime-panorama/compare/v1.2.1...v1.2.2) (2025-10-25)
 
 

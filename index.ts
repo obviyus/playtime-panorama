@@ -1,3 +1,4 @@
+import "./set-working-directory";
 import {
 	getPlaytimePayload,
 	getVanityResolution,

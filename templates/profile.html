@@ -186,6 +186,9 @@
 
 			let layout = { columns, rowHeight: 0, cells: [] };
 			const MAX_ITERATIONS = 4;
+			const weightBias = 0.1;
+			const weightExponent = 0.62;
+			const disparityCurve = 1.35;
 
 			for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
 				const columnWidth = stageWidth / columns;
@@ -193,30 +196,35 @@
 				const computedMaxSpan = Math.floor(columns / 6) + 3;
 				const maxSpan = clamp(computedMaxSpan, 4, Math.min(columns, 10));
 				const minSpan = 1;
+				const maxArea = maxSpan * maxSpan;
+
+				const areaWeights = items.map((item) =>
+					Math.pow(Math.max(item.hours, 0) + weightBias, weightExponent),
+				);
+				const maxWeight = areaWeights.reduce(
+					(max, weight) => Math.max(max, weight),
+					0.0001,
+				);
 
 				const cells = items.map((item, index) => {
-					const normalized = item.hours > 0 ? Math.log1p(item.hours) / logMax : 0;
-					const weighted = Math.pow(normalized, 1.6);
-					const spanValue = 1 + weighted * (maxSpan - 1);
-					const span = clamp(Math.round(spanValue), minSpan, maxSpan);
-					return { id: item.id, span, order: index };
+					const weight = areaWeights[index];
+					const ratio = Math.max(0, weight / maxWeight);
+					const adjusted = Math.pow(ratio, disparityCurve);
+					const targetArea = 1 + adjusted * (maxArea - 1);
+					const span = clamp(Math.round(Math.sqrt(targetArea)), minSpan, maxSpan);
+					return { id: item.id, span, order: index, areaRatio: ratio };
 				});
 
 				if (cells.length && maxSpan > 1) {
-					cells[0].span = maxSpan;
-					if (cells[1]) {
-						cells[1].span = clamp(
-							Math.max(cells[1].span, maxSpan - 1),
-							minSpan + 1,
-							maxSpan - 1,
-						);
-					}
-					if (cells[2]) {
-						cells[2].span = clamp(
-							Math.max(cells[2].span, maxSpan - 2),
-							minSpan + 1,
-							maxSpan - 2,
-						);
+					cells[0].span = Math.max(cells[0].span, maxSpan);
+					for (let i = 1; i < Math.min(3, cells.length); i++) {
+						const cell = cells[i];
+						if (cell.areaRatio >= 0.5) {
+							const target = Math.round(
+								minSpan + cell.areaRatio * (maxSpan - minSpan),
+							);
+							cell.span = clamp(target, cell.span, maxSpan - i);
+						}
 					}
 				}
 

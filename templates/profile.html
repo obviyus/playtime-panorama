@@ -20,7 +20,6 @@
 			margin: 0;
 			overflow-x: hidden;
 			overflow-y: auto;
-			background: #66ff00;
 			color: #f5f7ff;
 		}
 
@@ -162,7 +161,7 @@
 
 		const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-		const computeGridLayout = (items, stageWidth) => {
+		const computeGridLayout = (items, stageWidth, stageHeight) => {
 			if (!items.length || stageWidth <= 0) {
 				return {
 					columns: 1,
@@ -171,45 +170,77 @@
 				};
 			}
 
-			const TARGET_CARD_WIDTH = 90;
-			const MIN_COLUMNS = 6;
-			const MAX_COLUMNS = 32;
-			const columns = clamp(
+			const hoursMax = items.reduce((max, item) => Math.max(max, item.hours), 0);
+			const logMax = hoursMax > 0 ? Math.log1p(hoursMax) : 1;
+
+			const TARGET_CARD_WIDTH = 46;
+			const MIN_COLUMNS = Math.max(8, Math.ceil(Math.sqrt(items.length)));
+			const MAX_COLUMNS = Math.max(MIN_COLUMNS, Math.min(60, items.length));
+			const maxHeight = Math.max(stageHeight || 0, window.innerHeight || 0, 480);
+
+			let columns = clamp(
 				Math.round(stageWidth / TARGET_CARD_WIDTH),
 				MIN_COLUMNS,
 				Math.min(MAX_COLUMNS, items.length),
 			);
 
-			const columnWidth = stageWidth / columns;
-			const rowHeight = columnWidth / HEADER_ASPECT;
+			let layout = { columns, rowHeight: 0, cells: [] };
+			const MAX_ITERATIONS = 4;
 
-			const hoursMax = items.reduce((max, item) => Math.max(max, item.hours), 0);
-			const logMax = hoursMax > 0 ? Math.log1p(hoursMax) : 1;
+			for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+				const columnWidth = stageWidth / columns;
+				const rowHeight = Math.max(columnWidth / HEADER_ASPECT, 10);
+				const computedMaxSpan = Math.floor(columns / 4) + 1;
+				const maxSpan = clamp(computedMaxSpan, 3, Math.min(columns, 6));
+				const minSpan = 1;
 
-			const computedMaxSpan = Math.floor(columns / 3) + 1;
-			const maxSpan = clamp(computedMaxSpan, 3, Math.min(columns, 6));
-			const minSpan = 1;
+				const cells = items.map((item, index) => {
+					const normalized = item.hours > 0 ? Math.log1p(item.hours) / logMax : 0;
+					const weighted = Math.pow(normalized, 0.8);
+					const area = 1 + weighted * (maxSpan * maxSpan - 1);
+					const span = clamp(Math.round(Math.sqrt(area)), minSpan, maxSpan);
+					return { id: item.id, span, order: index };
+				});
 
-			const cells = items.map((item, index) => {
-				const normalized = item.hours > 0 ? Math.log1p(item.hours) / logMax : 0;
-				const weighted = Math.pow(normalized, 0.8);
-				const area = 1 + weighted * (maxSpan * maxSpan - 1);
-				const span = clamp(Math.round(Math.sqrt(area)), minSpan, maxSpan);
-				return { id: item.id, span, order: index };
-			});
-
-			// Ensure the very first items stand out slightly more.
-			if (cells.length && maxSpan > 1) {
-				cells[0].span = maxSpan;
-				if (cells[1]) {
-					cells[1].span = clamp(cells[1].span + 1, minSpan + 1, maxSpan - 1);
+				if (cells.length && maxSpan > 1) {
+					cells[0].span = maxSpan;
+					if (cells[1]) {
+						cells[1].span = clamp(cells[1].span + 1, minSpan + 1, maxSpan - 1);
+					}
+					if (cells[2]) {
+						cells[2].span = Math.max(cells[2].span, Math.min(maxSpan - 1, minSpan + 1));
+					}
 				}
-				if (cells[2]) {
-					cells[2].span = Math.max(cells[2].span, Math.min(maxSpan - 1, minSpan + 1));
+
+				const totalArea = cells.reduce((acc, cell) => acc + cell.span * cell.span, 0);
+				const approxHeight =
+					(totalArea * stageWidth) / (columns * columns * HEADER_ASPECT);
+
+				if (
+					approxHeight > maxHeight &&
+					columns < Math.min(MAX_COLUMNS, items.length)
+				) {
+					const requiredColumns = clamp(
+						Math.ceil(
+							Math.sqrt(
+								(totalArea * stageWidth) / (maxHeight * HEADER_ASPECT),
+							),
+						),
+						columns + 1,
+						Math.min(MAX_COLUMNS, items.length),
+					);
+
+					if (requiredColumns !== columns) {
+						columns = requiredColumns;
+						continue;
+					}
 				}
+
+				layout = { columns, rowHeight, cells };
+				break;
 			}
 
-			return { columns, rowHeight, cells };
+			return layout;
 		};
 
 		const getStageDimensions = () => {
@@ -247,14 +278,14 @@
 				return;
 			}
 
-			const { width: stageWidth } = getStageDimensions();
+			const { width: stageWidth, height: stageHeight } = getStageDimensions();
 
 			const items = playable.map((game) => ({
 				id: game.appid,
 				hours: Math.max(game.playtime_forever ?? 0, 0) / 60,
 			}));
 
-			const layout = computeGridLayout(items, stageWidth);
+			const layout = computeGridLayout(items, stageWidth, stageHeight);
 
 			if (!layout.cells.length || layout.rowHeight <= 0) {
 				statusEl?.classList.add('error');

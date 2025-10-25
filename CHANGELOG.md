@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/obviyus/playtime-panorama/compare/v1.1.0...v1.2.0) (2025-10-25)
+
+
+### Features
+
+* download button for mosaic ([dedf054](https://github.com/obviyus/playtime-panorama/commit/dedf054a44d4ca795e46387fb8c7e6bafe74a0b0))
+
 # [1.1.0](https://github.com/obviyus/playtime-panorama/compare/v1.0.2...v1.1.0) (2025-10-25)
 
 

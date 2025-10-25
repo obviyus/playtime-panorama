@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/obviyus/playtime-panorama/compare/v1.0.0...v1.0.1) (2025-10-25)
+
+
+### Bug Fixes
+
+* copy over templates and tsconfig for build ([cd95b40](https://github.com/obviyus/playtime-panorama/commit/cd95b404db64ef23214528151cc93b3c47e967e0))
+
 # 1.0.0 (2025-10-25)
 
 

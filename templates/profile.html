@@ -385,6 +385,7 @@
 			context.fillStyle = '#05060f';
 			context.fillRect(0, 0, canvasWidth, canvasHeight);
 
+			let drawnTiles = 0;
 			for (const card of cards) {
 				const img = card.querySelector('img');
 				if (!img || (!img.currentSrc && !img.src)) {
@@ -399,7 +400,13 @@
 
 				const left = rect.left - containerRect.left;
 				const top = rect.top - containerRect.top;
-				const drawable = await getDrawableAsset(img);
+				let drawable;
+				try {
+					drawable = await getDrawableAsset(img);
+				} catch (error) {
+					console.warn('Skipping mosaic tile due to image load failure:', error);
+					continue;
+				}
 
 				context.drawImage(
 					drawable,
@@ -408,6 +415,11 @@
 					drawWidth * scale,
 					drawHeight * scale,
 				);
+				drawnTiles++;
+			}
+
+			if (drawnTiles === 0) {
+				throw new Error('No playable tiles were available to export.');
 			}
 
 			const blob = await new Promise((resolve, reject) => {
@@ -453,7 +465,10 @@
 				setDownloadState('ready');
 			} catch (error) {
 				console.error(error);
-				if (error instanceof Error && error.message.includes('No games')) {
+				if (
+					error instanceof Error &&
+					(error.message.includes('No games') || error.message.includes('No playable'))
+				) {
 					setDownloadState('disabled');
 				} else {
 					setDownloadState('error');

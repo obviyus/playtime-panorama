@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/obviyus/playtime-panorama/compare/v1.3.0...v1.3.1) (2025-10-25)
+
+
+### Bug Fixes
+
+* only cache "good" responses ([7c301df](https://github.com/obviyus/playtime-panorama/commit/7c301df4caa62e24e555019491996ec6172ba119))
+
 # [1.3.0](https://github.com/obviyus/playtime-panorama/compare/v1.2.3...v1.3.0) (2025-10-25)
 
 

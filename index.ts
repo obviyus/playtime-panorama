@@ -60,7 +60,14 @@ async function fetchPlaytimeFromSteam(steamID: string) {
 		`Found ${data.response?.game_count ?? 0} games for SteamID ${steamID}`,
 	);
 
-	return data.response ?? { game_count: 0, games: [] };
+	const response = data.response ?? { game_count: 0, games: [] };
+	const games =
+		response.games?.filter((game) => game.playtime_forever > 10) ?? [];
+
+	return {
+		game_count: games.length,
+		games,
+	};
 }
 
 const server = Bun.serve({

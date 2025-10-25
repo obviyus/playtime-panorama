@@ -1,0 +1,10 @@
+services:
+  app:
+    image: ghcr.io/obviyus/playtime-panorama:latest
+    ports:
+      - "3000:3000"
+    environment:
+      STEAM_API_KEY: ${STEAM_API_KEY:?err}
+      STEAM_CACHE_URL: sqlite:///cache/steam-cache.db
+    volumes:
+      - ./steam-cache:/cache

@@ -31,8 +31,10 @@ jobs:
         include:
           - platform: linux/amd64
             runner: ubuntu-latest
+            artifact: linux-amd64
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
+            artifact: linux-arm64
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -63,7 +65,7 @@ jobs:
           echo "${{ steps.build.outputs.digest }}" | sed 's/^sha256://' | xargs -I{} touch "${{ runner.temp }}/digests/{}"
       - uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ matrix.platform }}
+          name: digests-${{ matrix.artifact }}
           path: ${{ runner.temp }}/digests/*
           retention-days: 1
 

@@ -105,6 +105,8 @@
 			justify-content: stretch;
 			overflow: hidden;
 			background: #05060f;
+			transition: transform 160ms ease, box-shadow 160ms ease;
+			box-shadow: 0 0 0 rgba(0, 0, 0, 0);
 		}
 
 		.game-card img {
@@ -113,6 +115,39 @@
 			height: 100%;
 			image-rendering: auto;
 			object-fit: contain;
+			transition: transform 160ms ease;
+		}
+
+		.game-card:hover {
+			z-index: 10;
+			transform: translateY(-2px);
+			box-shadow: 0 10px 18px rgba(0, 0, 0, 0.3);
+		}
+
+		.game-card:hover img {
+			transform: scale(1.04);
+		}
+
+		.game-card::after {
+			content: attr(data-hours);
+			position: absolute;
+			inset: auto 0 0 0;
+			padding: 0.35rem 0.4rem;
+			background: linear-gradient(180deg, rgba(4, 5, 12, 0) 0%, rgba(4, 5, 12, 0.85) 60%);
+			color: rgba(245, 247, 255, 0.92);
+			font-size: clamp(0.55rem, 1.1vw, 0.8rem);
+			line-height: 1.1;
+			opacity: 0;
+			transform: translateY(6px);
+			transition: opacity 120ms ease, transform 120ms ease;
+			text-align: center;
+			pointer-events: none;
+		}
+
+		.game-card:hover::after,
+		.game-card:focus-visible::after {
+			opacity: 1;
+			transform: translateY(0);
 		}
 
 		@keyframes spin {
@@ -359,6 +394,10 @@
 				card.className = 'game-card';
 				card.style.gridColumn = `span ${cell.span}`;
 				card.style.gridRow = `span ${cell.span}`;
+				const hours = Math.max(game.playtime_forever ?? 0, 0) / 60;
+				card.dataset.hours = `${hours.toLocaleString(undefined, {
+					maximumFractionDigits: hours < 10 ? 1 : 0,
+				})} hrs`;
 
 				const img = document.createElement('img');
 				img.loading = 'eager';

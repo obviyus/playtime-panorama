@@ -52,7 +52,7 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
-          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ github.ref_name }}-pp
           cache-to:   type=gha,mode=max,scope=${{ github.ref_name }}-pp
           provenance: mode=max

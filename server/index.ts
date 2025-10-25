@@ -1,11 +1,11 @@
-import "./set-working-directory";
+import "~/server/set-working-directory";
 import {
 	getPlaytimePayload,
 	getVanityResolution,
 	SteamIdentifierError,
-} from "./steam";
-import profileBundle from "./templates/profile.html";
-import rootBundle from "./templates/root.html";
+} from "~/server/steam";
+import profileBundle from "~/templates/profile.html";
+import rootBundle from "~/templates/root.html";
 
 const DEFAULT_PORT = Number(Bun.env.PORT ?? Bun.env.BUN_PORT ?? 3000);
 const developmentMode = Bun.env.NODE_ENV !== "production";

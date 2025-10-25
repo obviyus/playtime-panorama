@@ -1,5 +1,5 @@
 import { SQL } from "bun";
-import type { SteamGame } from "./steam";
+import type { SteamGame } from "~/server/steam";
 
 const DEFAULT_CACHE_URL = "sqlite://./steam-cache.db";
 const cacheUrl = Bun.env.STEAM_CACHE_URL ?? DEFAULT_CACHE_URL;

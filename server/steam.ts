@@ -1,10 +1,10 @@
-import type { CachedPlaytimePayload } from "./database";
+import type { CachedPlaytimePayload } from "~/server/database";
 import {
 	cachePlaytimePayload,
 	cacheVanityResolution,
 	getCachedPlaytimePayload,
 	getCachedVanityResolution,
-} from "./database";
+} from "~/server/database";
 
 export interface SteamGame {
 	appid: number;

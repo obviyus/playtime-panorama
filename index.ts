@@ -1,8 +1,5 @@
-import { config } from "dotenv";
 import profileBundle from "./templates/profile.html";
 import rootBundle from "./templates/root.html";
-
-config();
 
 const STEAM_API_BASE =
 	"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/";

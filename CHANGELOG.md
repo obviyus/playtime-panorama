@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/obviyus/playtime-panorama/compare/v1.0.2...v1.1.0) (2025-10-25)
+
+
+### Features
+
+* meta tags for preview ([c829bbf](https://github.com/obviyus/playtime-panorama/commit/c829bbfbae0898d3c56d43eaf9e6f62bdc2fff2f))
+
 ## [1.0.2](https://github.com/obviyus/playtime-panorama/compare/v1.0.1...v1.0.2) (2025-10-25)
 
 

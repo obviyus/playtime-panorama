@@ -1,11 +1,13 @@
 import { config } from "dotenv";
+import profileBundle from "./templates/profile.html";
+import rootBundle from "./templates/root.html";
 
 config();
 
 const STEAM_API_BASE =
 	"https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/";
-const STEAM_CDN_BASE = "https://cdn.steamstatic.com/steam/apps";
 const DEFAULT_PORT = Number(Bun.env.PORT ?? Bun.env.BUN_PORT ?? 3000);
+const developmentMode = Bun.env.NODE_ENV !== "production";
 
 interface SteamGame {
 	appid: number;
@@ -23,25 +25,6 @@ interface SteamOwnedGamesResponse {
 
 if (!Bun.env.STEAM_API_KEY) {
 	console.warn("Missing STEAM_API_KEY. /api/playtime requests will fail.");
-}
-
-function escapeHtml(value: string) {
-	return value.replace(/[&<>"']/g, (char) => {
-		switch (char) {
-			case "&":
-				return "&amp;";
-			case "<":
-				return "&lt;";
-			case ">":
-				return "&gt;";
-			case '"':
-				return "&quot;";
-			case "'":
-				return "&#39;";
-			default:
-				return char;
-		}
-	});
 }
 
 function buildSteamRequestUrl(steamID: string, apiKey: string) {
@@ -80,41 +63,14 @@ async function fetchPlaytimeFromSteam(steamID: string) {
 	return data.response ?? { game_count: 0, games: [] };
 }
 
-async function loadTemplate(templateName: string) {
-	const file = Bun.file(
-		new URL(`./templates/${templateName}`, import.meta.url),
-	);
-	return file.text();
-}
-
-const [rootTemplate, profileTemplate] = await Promise.all([
-	loadTemplate("root.html"),
-	loadTemplate("profile.html"),
-]);
-
-function applyTemplate(template: string, replacements: Record<string, string>) {
-	let output = template;
-	for (const [key, value] of Object.entries(replacements)) {
-		output = output.split(key).join(value);
-	}
-	return output;
-}
-
-function rootHtml() {
-	return rootTemplate;
-}
-
-function steamProfileHtml(steamID: string) {
-	const safeSteamID = escapeHtml(steamID);
-	return applyTemplate(profileTemplate, {
-		__STEAM_ID_HTML__: safeSteamID,
-		__STEAM_ID_JSON__: JSON.stringify(steamID),
-		__STEAM_CDN_BASE__: JSON.stringify(STEAM_CDN_BASE),
-	});
-}
-
 const server = Bun.serve({
 	port: DEFAULT_PORT,
+	development: developmentMode
+		? {
+				hmr: true,
+				console: true,
+			}
+		: false,
 	routes: {
 		"/api/playtime/:steamID": {
 			GET: async (req) => {
@@ -143,14 +99,8 @@ const server = Bun.serve({
 				}
 			},
 		},
-		"/": () =>
-			new Response(rootHtml(), {
-				headers: { "Content-Type": "text/html; charset=utf-8" },
-			}),
-		"/:steamID": (req) =>
-			new Response(steamProfileHtml(req.params.steamID), {
-				headers: { "Content-Type": "text/html; charset=utf-8" },
-			}),
+		"/": rootBundle,
+		"/:steamID": profileBundle,
 	},
 	fetch() {
 		return new Response("Not Found", { status: 404 });

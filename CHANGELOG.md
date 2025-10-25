@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/obviyus/playtime-panorama/compare/v1.0.1...v1.0.2) (2025-10-25)
+
+
+### Bug Fixes
+
+* safe artifact naming ([bd50fb8](https://github.com/obviyus/playtime-panorama/commit/bd50fb8a5362c42072cb809a0873f61ebceb04d3))
+
 ## [1.0.1](https://github.com/obviyus/playtime-panorama/compare/v1.0.0...v1.0.1) (2025-10-25)
 
 

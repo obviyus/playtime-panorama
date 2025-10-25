@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/obviyus/playtime-panorama/compare/v1.2.1...v1.2.2) (2025-10-25)
+
+
+### Bug Fixes
+
+* handle asset failures gracefully ([27d3691](https://github.com/obviyus/playtime-panorama/commit/27d3691e5632bbb01f3cbac152034e3a9d51b640))
+
 ## [1.2.1](https://github.com/obviyus/playtime-panorama/compare/v1.2.0...v1.2.1) (2025-10-25)
 
 

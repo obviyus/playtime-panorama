@@ -30,6 +30,10 @@ export interface LeaderboardSnapshot {
 }
 
 const MAX_ROWS = 25;
+const LEADERBOARD_CACHE_TTL_MS = 5 * 60 * 1000;
+
+let cachedSnapshot: LeaderboardSnapshot | null = null;
+let cachedSnapshotExpiry = 0;
 
 function summarizeRecord(record: CachedPlaytimeRecord): LeaderboardEntry {
 	const totalMinutes = record.payload.games.reduce((total, game) => {
@@ -114,6 +118,12 @@ function limitEntries(entries: LeaderboardEntry[]) {
 }
 
 export async function getLeaderboardSnapshot(): Promise<LeaderboardSnapshot> {
+	const now = Date.now();
+
+	if (cachedSnapshot && cachedSnapshotExpiry > now) {
+		return cachedSnapshot;
+	}
+
 	const cachedRecords = await listCachedPlaytimeRecords();
 	const summaries = cachedRecords.map(summarizeRecord);
 
@@ -131,10 +141,17 @@ export async function getLeaderboardSnapshot(): Promise<LeaderboardSnapshot> {
 			.slice(0, MAX_ROWS),
 	};
 
-	return {
+	const generatedAt = Math.floor(now / 1000);
+
+	const snapshot: LeaderboardSnapshot = {
 		metrics,
-		generatedAt: Math.floor(Date.now() / 1000),
+		generatedAt,
 	};
+
+	cachedSnapshot = snapshot;
+	cachedSnapshotExpiry = now + LEADERBOARD_CACHE_TTL_MS;
+
+	return snapshot;
 }
 
 function escapeHtml(value: string): string {
@@ -501,8 +518,7 @@ export function renderLeaderboardHtml(snapshot: LeaderboardSnapshot): string {
 			${metricDefinitions
 				.map(
 					(metric) =>
-						`<button class="tab${
-							metric.id === firstTab ? " active" : ""
+						`<button class="tab${metric.id === firstTab ? " active" : ""
 						}" type="button" data-tab="${metric.id}">${metric.label}</button>`,
 				)
 				.join("")}
@@ -512,8 +528,7 @@ export function renderLeaderboardHtml(snapshot: LeaderboardSnapshot): string {
 		${metricDefinitions
 			.map(
 				(metric) => `
-					<section class="tab-panel${
-						metric.id === firstTab ? " active" : ""
+					<section class="tab-panel${metric.id === firstTab ? " active" : ""
 					}" data-tab-panel="${metric.id}">
 						<h2>${metric.label}</h2>
 						<p>${metric.description}</p>

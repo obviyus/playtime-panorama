@@ -35,10 +35,9 @@ The collage is laid out by `computeGridLayout` in `templates/profile.html`, and 
 Apart from a few type packages, this app uses no external dependencies. Everything runs off of Bun's in-built APIs on the server and the frontend is intentionally a simple, HTML file without React or Tailwind. I wanted a performant, minimal dependency approach for this project.
 
 ## Limitations & quirks
-- Games with less than 10 minutes of lifetime playtime are skipped so the mosaic stays readable.
-- Family sharing libraries are filtered out because Steam's API does not expose the lending metadata in `GetOwnedGames`.
-- Dota 2's license is unusual; in my testing it only appears in the API response when the game is currently installed.
-- Data is only as fresh as Steam's own reporting cadence, which can lag a few minutes after you close a session.
+- Games with less than 10 minutes of lifetime playtime are skipped.
+- Family sharing libraries are not exposed by Steam's API in `GetOwnedGames`.
+- Dota 2 has an unusual licens. It _seems_ to only appears in the API response when the game is currently installed but I couldn't verify it thoroughly.
 
 ## Why I built this
 I was reading the patch notes for [Bun 1.3](https://bun.com/blog/bun-v1.3) (♥) where they talk about Bun being a "Full‑stack JavaScript runtime". I really wanted to see how far I can get with only Bun's in-built APIs.

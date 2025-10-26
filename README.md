@@ -20,7 +20,7 @@ STEAM_API_KEY=ABCDEFGH... bun run dev
 
 Visit `http://localhost:3000/<your-steam-id>` and the server will fetch, normalize, and render the responsive grid layout on the fly.
 
-The server the response for up to 24 hours for playtime data and indefinitely for `ISteamUser/ResolveVanityURL` to avoid hitting the API repeatedly (Steam provides [100K req/day](https://steamcommunity.com/dev/apiterms))
+The server caches responses for up to 24 hours for playtime data and indefinitely for `ISteamUser/ResolveVanityURL` to avoid hitting the API repeatedly (Steam provides [100K req/day](https://steamcommunity.com/dev/apiterms))
 
 
 ## How the packing logic works

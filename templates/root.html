@@ -103,7 +103,7 @@
 		}
 
 		.identity-hint {
-			margin-top: 0.25rem;
+			margin-top: 0.5rem;
 			color: #a7a7a7;
 			font-size: 0.95rem;
 			line-height: 1.5;
@@ -148,8 +148,9 @@
 			font-size: 0.875rem;
 			color: #888888;
 			display: flex;
-			gap: 0.5rem;
+			flex-direction: column;
 			align-items: center;
+			gap: 0.5rem;
 		}
 
 		footer a {
@@ -161,6 +162,14 @@
 
 		footer a:hover {
 			color: #f5f5f5;
+		}
+
+		.footer-attribution {
+			display: flex;
+			gap: 0.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+			justify-content: center;
 		}
 	</style>
 </head>
@@ -180,7 +189,7 @@
 			<button type="submit">Show my games</button>
 		</form>
 		<p class="identity-hint">
-			Tip: Use the ID from your Steam profile URL (the part after <code>steamcommunity.com/id/</code> or
+			Use the ID from your Steam profile URL (the part after <code>steamcommunity.com/id/</code> or
 			<code>/profiles/</code>).
 			Display names with emojis or punctuation will not resolve.
 		</p>
@@ -233,11 +242,14 @@
 		});
 	</script>
 	<footer>
-		<span>Built by</span>
-		<a href="https://github.com/obviyus" target="_blank" rel="noreferrer">@obviyus</a>
-		<span>•</span>
-		<a href="https://github.com/obviyus/playtime-panorama" target="_blank" rel="noreferrer">Source Code on
-			GitHub</a>
+		<a href="/leaderboard">View Leaderboard</a>
+		<div class="footer-attribution">
+			<span>Built by</span>
+			<a href="https://github.com/obviyus" target="_blank" rel="noreferrer">@obviyus</a>
+			<span>•</span>
+			<a href="https://github.com/obviyus/playtime-panorama" target="_blank" rel="noreferrer">Source Code on
+				GitHub</a>
+		</div>
 	</footer>
 </body>
 

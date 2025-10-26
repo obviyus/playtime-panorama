@@ -208,7 +208,8 @@
 		footer {
 			padding: 0 0 1.75rem;
 			display: flex;
-			justify-content: center;
+			flex-direction: column;
+			align-items: center;
 			gap: 0.5rem;
 			color: #808080;
 			font-size: 0.8rem;
@@ -222,6 +223,14 @@
 
 		footer a:hover {
 			color: #f2f2f2;
+		}
+
+		.footer-attribution {
+			display: flex;
+			gap: 0.5rem;
+			align-items: center;
+			flex-wrap: wrap;
+			justify-content: center;
 		}
 
 		@media (max-width: 720px) {
@@ -258,9 +267,16 @@
 		<div data-role="panels"></div>
 	</main>
 	<footer>
-		<span>Generated: <span data-role="generated-at">—</span></span>
-		<span>•</span>
-		<a href="/">Back to panorama builder</a>
+		<a href="/">Open panorama builder</a>
+		<div class="footer-attribution">
+			<span>Generated: <span data-role="generated-at">—</span></span>
+			<span>•</span>
+			<span>Built by</span>
+			<a href="https://github.com/obviyus" target="_blank" rel="noreferrer">@obviyus</a>
+			<span>•</span>
+			<a href="https://github.com/obviyus/playtime-panorama" target="_blank" rel="noreferrer">Source Code on
+				GitHub</a>
+		</div>
 	</footer>
 	<script>
 		const TAB_METADATA = [

@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/obviyus/playtime-panorama/compare/v1.5.0...v1.6.0) (2025-10-26)
+
+
+### Features
+
+* separate out leaderboard template and API ([869db76](https://github.com/obviyus/playtime-panorama/commit/869db769a965ea7775d137fe3d9d2acfcdeae4c5))
+
 # [1.5.0](https://github.com/obviyus/playtime-panorama/compare/v1.4.0...v1.5.0) (2025-10-26)
 
 

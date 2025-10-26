@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/obviyus/playtime-panorama/compare/v1.3.1...v1.4.0) (2025-10-26)
+
+
+### Features
+
+* playtime leaderboard from cache ([02d172d](https://github.com/obviyus/playtime-panorama/commit/02d172d9b428f7b593b786ac54a18d5161c5470e))
+
 ## [1.3.1](https://github.com/obviyus/playtime-panorama/compare/v1.3.0...v1.3.1) (2025-10-25)
 
 

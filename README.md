@@ -32,7 +32,7 @@ The collage is laid out by `computeGridLayout` in `templates/profile.html`, and 
 - **Height-aware column search.** Before locking a layout, the code estimates overall grid height. If the grid would overflow the viewport, it increases the column count; if it leaves too much empty space, it trims columns. This loop runs a handful of times so the final grid sits neatly in the visible stage.
 - **Row sizing + CSS handoff.** With the chosen column count, `--columns` and `--row-size` are written to CSS variables, and the DOM simply flows cards into place. Hover states and tooltips are handled purely in CSS for smooth rendering.
 
-Apart from a few type packages, this app uses NO external dependencies. Everything runs off of Bun's in-built APIs on the server and the frontend is intentionally a simple, HTML file without React or Tailwind. I wanted a performant, minimal dependency approach for this project.
+Apart from a few type packages, this app uses no external dependencies. Everything runs off of Bun's in-built APIs on the server and the frontend is intentionally a simple, HTML file without React or Tailwind. I wanted a performant, minimal dependency approach for this project.
 
 ## Limitations & quirks
 - Games with less than 10 minutes of lifetime playtime are skipped so the mosaic stays readable.
@@ -41,7 +41,7 @@ Apart from a few type packages, this app uses NO external dependencies. Everythi
 - Data is only as fresh as Steam's own reporting cadence, which can lag a few minutes after you close a session.
 
 ## Why I built this
-I was reading the patch notes for [Bun 1.3](https://bun.com/blog/bun-v1.3) (♥) where they talk about Bun being a "Full‑stack JavaScript runtime". I really just wanted to see how far I can get with just Bun's in-built APIs.
+I was reading the patch notes for [Bun 1.3](https://bun.com/blog/bun-v1.3) (♥) where they talk about Bun being a "Full‑stack JavaScript runtime". I really wanted to see how far I can get with only Bun's in-built APIs.
 
 Plus, it's fun.
 

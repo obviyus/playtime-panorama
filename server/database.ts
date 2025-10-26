@@ -9,7 +9,7 @@ const sql =
 		? new SQL(cacheUrl)
 		: new SQL(cacheUrl, { adapter: "sqlite" });
 
-const PLAYTIME_TTL_SECONDS = 60 * 60 * 24;
+export const PLAYTIME_TTL_SECONDS = 60 * 60 * 24;
 
 await sql`PRAGMA journal_mode = WAL`;
 
@@ -32,6 +32,12 @@ await sql`
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 const normalizeVanity = (value: string) => value.trim().toLowerCase();
+
+interface PlaytimeCacheRow {
+	steam_id: string;
+	payload: string;
+	fetched_at: number;
+}
 
 async function deletePlaytimeCacheEntry(steamId: string) {
 	await sql`
@@ -77,6 +83,30 @@ export interface CachedPlaytimePayload {
 	games: SteamGame[];
 }
 
+type PlaytimeRowStatus = "ok" | "expired" | "empty" | "invalid";
+
+function parseCachedPlaytimeRow(
+	row: PlaytimeCacheRow,
+): { status: PlaytimeRowStatus; payload: CachedPlaytimePayload | null } {
+	const ageSeconds = nowSeconds() - row.fetched_at;
+	if (ageSeconds > PLAYTIME_TTL_SECONDS) {
+		return { status: "expired", payload: null };
+	}
+
+	try {
+		const payload = JSON.parse(row.payload) as CachedPlaytimePayload;
+
+		if (!payload.game_count) {
+			return { status: "empty", payload: null };
+		}
+
+		return { status: "ok", payload };
+	} catch (error) {
+		console.error("Failed to parse cached playtime payload", error);
+		return { status: "invalid", payload: null };
+	}
+}
+
 export async function getCachedPlaytimePayload(
 	steamId: string,
 ): Promise<CachedPlaytimePayload | null> {
@@ -98,20 +128,17 @@ export async function getCachedPlaytimePayload(
 		return null;
 	}
 
-	try {
-		const payload = JSON.parse(row.payload) as CachedPlaytimePayload;
+	const parsed = parseCachedPlaytimeRow({ steam_id: steamId, ...row });
 
-		if (!payload.game_count) {
-			await deletePlaytimeCacheEntry(steamId);
-			return null;
-		}
-
-		return payload;
-	} catch (error) {
-		console.error("Failed to parse cached playtime payload", error);
-		await deletePlaytimeCacheEntry(steamId);
-		return null;
+	if (parsed.status === "ok" && parsed.payload) {
+		return parsed.payload;
 	}
+
+	if (parsed.status === "empty" || parsed.status === "invalid") {
+		await deletePlaytimeCacheEntry(steamId);
+	}
+
+	return null;
 }
 
 export async function cachePlaytimePayload(
@@ -132,4 +159,40 @@ export async function cachePlaytimePayload(
 		ON CONFLICT(steam_id)
 		DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at
 	`;
+}
+
+export interface CachedPlaytimeRecord {
+	steamId: string;
+	payload: CachedPlaytimePayload;
+	fetchedAt: number;
+}
+
+export async function listCachedPlaytimeRecords(): Promise<
+	CachedPlaytimeRecord[]
+> {
+	const rows = (await sql`
+		SELECT steam_id, payload, fetched_at
+		FROM playtime_cache
+	`) as PlaytimeCacheRow[];
+
+	const validRecords: CachedPlaytimeRecord[] = [];
+
+	for (const row of rows) {
+		const parsed = parseCachedPlaytimeRow(row);
+
+		if (parsed.status === "ok" && parsed.payload) {
+			validRecords.push({
+				steamId: row.steam_id,
+				payload: parsed.payload,
+				fetchedAt: row.fetched_at,
+			});
+			continue;
+		}
+
+		if (parsed.status === "empty" || parsed.status === "invalid") {
+			await deletePlaytimeCacheEntry(row.steam_id);
+		}
+	}
+
+	return validRecords;
 }

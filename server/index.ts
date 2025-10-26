@@ -4,6 +4,10 @@ import {
 	getVanityResolution,
 	SteamIdentifierError,
 } from "~/server/steam";
+import {
+	getLeaderboardSnapshot,
+	renderLeaderboardHtml,
+} from "~/server/leaderboard";
 import profileBundle from "~/templates/profile.html";
 import rootBundle from "~/templates/root.html";
 
@@ -78,6 +82,26 @@ const server = Bun.serve({
 						{ error: "Unable to fetch playtime data from Steam." },
 						{ status: 502 },
 					);
+				}
+			},
+		},
+		"/leaderboard": {
+			GET: async () => {
+				try {
+					const snapshot = await getLeaderboardSnapshot();
+					const html = renderLeaderboardHtml(snapshot);
+
+					return new Response(html, {
+						headers: {
+							"Content-Type": "text/html; charset=utf-8",
+							"Cache-Control": "no-store",
+						},
+					});
+				} catch (error) {
+					console.error("Failed to render leaderboard", error);
+					return new Response("Unable to render leaderboard right now.", {
+						status: 500,
+					});
 				}
 			},
 		},

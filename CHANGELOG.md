@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/obviyus/playtime-panorama/compare/v1.6.0...v1.7.0) (2025-10-26)
+
+
+### Features
+
+* improved attribution and wording ([48589b6](https://github.com/obviyus/playtime-panorama/commit/48589b673e9b42d3cc3fa7adc25fcfbd4ef8947b))
+
 # [1.6.0](https://github.com/obviyus/playtime-panorama/compare/v1.5.0...v1.6.0) (2025-10-26)
 
 

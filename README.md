@@ -8,6 +8,7 @@ Generate a dense, responsive collage of your Steam library where each header ima
 - Fetches publicly visible Steam playtime data from `IPlayerService/GetOwnedGames`.
 - Scales every game's header image by actual hours played, so long-haul favorites dominate the collage.
 - Arranges the artwork into a responsive CSS grid that reflows to match any viewport size.
+- Generates a [leaderboard](https://playtime-panorama.superserio.us/leaderboard) of the top profiles (game count, hours played, hours / game average).
 
 ## Quick start
 

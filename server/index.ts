@@ -4,10 +4,8 @@ import {
 	getVanityResolution,
 	SteamIdentifierError,
 } from "~/server/steam";
-import {
-	getLeaderboardSnapshot,
-	renderLeaderboardHtml,
-} from "~/server/leaderboard";
+import { getLeaderboardSnapshot } from "~/server/leaderboard";
+import leaderboardBundle from "~/templates/leaderboard.html";
 import profileBundle from "~/templates/profile.html";
 import rootBundle from "~/templates/root.html";
 
@@ -22,9 +20,9 @@ const server = Bun.serve({
 	port: DEFAULT_PORT,
 	development: developmentMode
 		? {
-				hmr: true,
-				console: true,
-			}
+			hmr: true,
+			console: true,
+		}
 		: false,
 	routes: {
 		"/api/playtime/:identifier": {
@@ -85,23 +83,22 @@ const server = Bun.serve({
 				}
 			},
 		},
-		"/leaderboard": {
+		"/leaderboard": leaderboardBundle,
+		"/api/leaderboard": {
 			GET: async () => {
 				try {
 					const snapshot = await getLeaderboardSnapshot();
-					const html = renderLeaderboardHtml(snapshot);
-
-					return new Response(html, {
+					return Response.json(snapshot, {
 						headers: {
-							"Content-Type": "text/html; charset=utf-8",
 							"Cache-Control": "no-store",
 						},
 					});
 				} catch (error) {
-					console.error("Failed to render leaderboard", error);
-					return new Response("Unable to render leaderboard right now.", {
-						status: 500,
-					});
+					console.error("Failed to load leaderboard snapshot", error);
+					return Response.json(
+						{ error: "Unable to load leaderboard right now." },
+						{ status: 500 },
+					);
 				}
 			},
 		},

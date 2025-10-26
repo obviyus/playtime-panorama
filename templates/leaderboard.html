@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Leaderboard • Playtime Panorama</title>
+	<style>
+		:root {
+			color-scheme: dark;
+			font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			background-color: #0a0a0a;
+			color: #f2f2f2;
+		}
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			background: #080808;
+		}
+
+		header {
+			padding: 2rem clamp(1.25rem, 4vw, 2.5rem) 1rem;
+			display: flex;
+			flex-direction: column;
+			gap: 0.8rem;
+		}
+
+		header h1 {
+			margin: 0;
+			font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+			letter-spacing: -0.02em;
+		}
+
+		header p {
+			margin: 0;
+			max-width: 46rem;
+			color: #bdbdbd;
+			line-height: 1.5;
+			font-size: 0.95rem;
+		}
+
+		.tab-bar {
+			display: flex;
+			gap: 0.5rem;
+			margin-top: 0.2rem;
+		}
+
+		.tab {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			padding: 0.38rem 1rem;
+			border-radius: 0.6rem;
+			border: 1px solid transparent;
+			background: rgba(255, 255, 255, 0.05);
+			color: #d9d9d9;
+			font: inherit;
+			font-weight: 600;
+			cursor: pointer;
+			transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+			font-size: 0.95rem;
+		}
+
+		.tab:hover {
+			background: rgba(255, 255, 255, 0.1);
+		}
+
+		.tab.active {
+			background-color: #f5f5f5;
+			color: #101010;
+			border-color: rgba(255, 255, 255, 0.35);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+		}
+
+		main {
+			flex: 1;
+			padding: 0 clamp(1.25rem, 4vw, 2.5rem) 2.5rem;
+			display: grid;
+			gap: 1.75rem;
+		}
+
+		.status-banner {
+			margin: 0;
+			border-radius: 1rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(18, 18, 18, 0.75);
+			padding: 1.5rem;
+			color: #bcbcbc;
+			text-align: center;
+			font-size: 0.95rem;
+		}
+
+		.tab-panel {
+			display: none;
+			border-radius: 1rem;
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			background: rgba(18, 18, 18, 0.75);
+			box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+			padding: 1.5rem;
+		}
+
+		.tab-panel.active {
+			display: block;
+		}
+
+		.tab-panel h2 {
+			margin: 0;
+			font-size: 1.1rem;
+			letter-spacing: -0.01em;
+		}
+
+		.tab-panel p {
+			margin: 0.35rem 0 0.9rem;
+			color: #9a9a9a;
+			line-height: 1.45;
+			font-size: 0.9rem;
+		}
+
+		.table-wrapper {
+			overflow-x: auto;
+		}
+
+		.leaderboard-table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 0.92rem;
+			color: #e3e3e3;
+			min-width: 640px;
+		}
+
+		.leaderboard-table th {
+			text-align: left;
+			font-size: 0.74rem;
+			text-transform: uppercase;
+			letter-spacing: 0.09em;
+			color: #8b8b8b;
+			font-weight: 600;
+			padding: 0.35rem 0.6rem;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		}
+
+		.leaderboard-table td {
+			padding: 0.45rem 0.6rem;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+			vertical-align: middle;
+		}
+
+		.leaderboard-table tbody tr:last-child td {
+			border-bottom: none;
+		}
+
+		.leaderboard-table tbody tr:hover td {
+			background: rgba(255, 255, 255, 0.05);
+		}
+
+		.cell-rank {
+			font-variant-numeric: tabular-nums;
+			font-weight: 600;
+			color: #b4b4b4;
+			width: 2.2rem;
+		}
+
+		.cell-id a {
+			color: inherit;
+			text-decoration: none;
+			font-weight: 600;
+			letter-spacing: -0.01em;
+		}
+
+		.cell-id a:hover {
+			text-decoration: underline;
+		}
+
+		.cell-updated {
+			font-size: 0.82rem;
+			color: #8e8e8e;
+			white-space: nowrap;
+		}
+
+		.empty-state {
+			text-align: center;
+			padding: 1.75rem 1.2rem;
+			border-radius: 0.75rem;
+			border: 1px dashed rgba(255, 255, 255, 0.15);
+			background: rgba(255, 255, 255, 0.02);
+			display: grid;
+			gap: 0.4rem;
+		}
+
+		.empty-state p {
+			margin: 0;
+			color: #b5b5b5;
+		}
+
+		.empty-state a {
+			color: #f5f5f5;
+			font-weight: 600;
+			text-decoration: none;
+		}
+
+		.empty-state a:hover {
+			text-decoration: underline;
+		}
+
+		footer {
+			padding: 0 0 1.75rem;
+			display: flex;
+			justify-content: center;
+			gap: 0.5rem;
+			color: #808080;
+			font-size: 0.8rem;
+		}
+
+		footer a {
+			color: inherit;
+			text-decoration: none;
+			font-weight: 500;
+		}
+
+		footer a:hover {
+			color: #f2f2f2;
+		}
+
+		@media (max-width: 720px) {
+			.leaderboard-table {
+				min-width: 520px;
+			}
+		}
+
+		@media (max-width: 560px) {
+			.tab-panel {
+				padding: 1.25rem;
+			}
+
+			header {
+				padding: 1.75rem 1.25rem 0.9rem;
+			}
+
+			main {
+				padding: 0 1.25rem 2rem;
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<header>
+		<h1>Leaderboards</h1>
+		<p>Browse cached Steam profiles to see who hoards the most games or racks up the most minutes. Data refreshes
+			whenever someone loads a profile and sticks around for 24 hours.</p>
+		<div class="tab-bar" data-role="tab-bar"></div>
+	</header>
+	<main>
+		<p class="status-banner" data-role="status">Loading leaderboard…</p>
+		<div data-role="panels"></div>
+	</main>
+	<footer>
+		<span>Generated: <span data-role="generated-at">—</span></span>
+		<span>•</span>
+		<a href="/">Back to panorama builder</a>
+	</footer>
+	<script>
+		const TAB_METADATA = [
+			{
+				id: 'games',
+				label: 'Most Games',
+				description: 'Players with the largest cached libraries.',
+				accessor: (snapshot) => snapshot.metrics?.byGameCount ?? [],
+			},
+			{
+				id: 'time',
+				label: 'Most Playtime',
+				description: 'Total minutes played across cached titles.',
+				accessor: (snapshot) => snapshot.metrics?.byTotalPlaytime ?? [],
+			},
+			{
+				id: 'average',
+				label: 'Highest Avg',
+				description: 'Average minutes per cached game.',
+				accessor: (snapshot) => snapshot.metrics?.byAveragePlaytime ?? [],
+			},
+		];
+
+		const tabBar = document.querySelector('[data-role="tab-bar"]');
+		const panelsHost = document.querySelector('[data-role="panels"]');
+		const statusBanner = document.querySelector('[data-role="status"]');
+		const generatedAtField = document.querySelector('[data-role="generated-at"]');
+
+		const formatMinutes = (minutes) => {
+			const rounded = Math.round(Math.max(minutes, 0));
+			const hours = Math.floor(rounded / 60);
+			const remainder = rounded % 60;
+			if (hours && remainder) {
+				return `${hours}h ${remainder}m`;
+			}
+			if (hours) {
+				return `${hours}h`;
+			}
+			return `${rounded}m`;
+		};
+
+		const formatTimestamp = (seconds) => {
+			if (!Number.isFinite(seconds)) {
+				return '—';
+			}
+			const date = new Date(seconds * 1000);
+			const pad = (value) => String(value).padStart(2, '0');
+			return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())} UTC`;
+		};
+
+		const clearStatus = () => {
+			if (statusBanner) {
+				statusBanner.hidden = true;
+			}
+		};
+
+		const showStatus = (message) => {
+			if (!statusBanner) {
+				return;
+			}
+			statusBanner.textContent = message;
+			statusBanner.hidden = false;
+		};
+
+		const createCell = (tag) => document.createElement(tag);
+
+		const renderTable = (entries) => {
+			if (!entries.length) {
+				const empty = document.createElement('div');
+				empty.className = 'empty-state';
+				const message = document.createElement('p');
+				message.textContent = 'No cached profiles yet.';
+				const hint = document.createElement('p');
+				const link = document.createElement('a');
+				link.href = '/';
+				link.textContent = 'Run a profile';
+				hint.append(link, document.createTextNode(' to populate the leaderboard.'));
+				empty.append(message, hint);
+				return empty;
+			}
+
+			const wrapper = document.createElement('div');
+			wrapper.className = 'table-wrapper';
+			const table = document.createElement('table');
+			table.className = 'leaderboard-table';
+			const thead = document.createElement('thead');
+			const headRow = document.createElement('tr');
+			const headers = ['#', 'SteamID', 'Games', 'Total', 'Avg / game', 'Top title', 'Cached'];
+			for (const title of headers) {
+				const th = createCell('th');
+				th.scope = 'col';
+				th.textContent = title;
+				headRow.append(th);
+			}
+			thead.append(headRow);
+
+			const tbody = document.createElement('tbody');
+			entries.forEach((entry, index) => {
+				const row = document.createElement('tr');
+				const rankCell = createCell('td');
+				rankCell.className = 'cell-rank';
+				rankCell.textContent = String(index + 1);
+				row.append(rankCell);
+
+				const idCell = createCell('td');
+				idCell.className = 'cell-id';
+				const link = document.createElement('a');
+				link.href = entry.profileHref;
+				link.textContent = String(entry.steamId ?? '');
+				idCell.append(link);
+				row.append(idCell);
+
+				const gameCountCell = createCell('td');
+				gameCountCell.textContent = Number(entry.gameCount || 0).toLocaleString();
+				row.append(gameCountCell);
+
+				const totalCell = createCell('td');
+				totalCell.textContent = formatMinutes(entry.totalMinutes || 0);
+				row.append(totalCell);
+
+				const avgCell = createCell('td');
+				avgCell.textContent = formatMinutes(entry.averageMinutes || 0);
+				row.append(avgCell);
+
+				const topGameCell = createCell('td');
+				const topName = (entry.topGame?.name ?? '').trim();
+				if (topName && entry.topGame && entry.topGame.minutes > 0) {
+					topGameCell.textContent = `${topName} (${formatMinutes(entry.topGame.minutes)})`;
+				} else {
+					topGameCell.textContent = '—';
+				}
+				row.append(topGameCell);
+
+				const updatedCell = createCell('td');
+				updatedCell.className = 'cell-updated';
+				updatedCell.textContent = formatTimestamp(entry.lastUpdated);
+				row.append(updatedCell);
+
+				tbody.append(row);
+			});
+
+			table.append(thead, tbody);
+			wrapper.append(table);
+			return wrapper;
+		};
+
+		const activateTab = (tabId) => {
+			const tabs = tabBar?.querySelectorAll('.tab') || [];
+			const panels = panelsHost?.querySelectorAll('.tab-panel') || [];
+			tabs.forEach((tab) => {
+				tab.classList.toggle('active', tab.dataset.tab === tabId);
+			});
+			panels.forEach((panel) => {
+				panel.classList.toggle('active', panel.dataset.tabPanel === tabId);
+			});
+		};
+
+		const renderSnapshot = (snapshot) => {
+			clearStatus();
+
+			const defaultTab = TAB_METADATA[0]?.id;
+			const tabFragment = document.createDocumentFragment();
+			const panelFragment = document.createDocumentFragment();
+
+			TAB_METADATA.forEach((meta) => {
+				const tab = document.createElement('button');
+				tab.type = 'button';
+				tab.className = 'tab';
+				tab.dataset.tab = meta.id;
+				tab.textContent = meta.label;
+				tab.addEventListener('click', () => activateTab(meta.id));
+				tabFragment.append(tab);
+
+				const panel = document.createElement('section');
+				panel.className = 'tab-panel';
+				panel.dataset.tabPanel = meta.id;
+				const heading = document.createElement('h2');
+				heading.textContent = meta.label;
+				const description = document.createElement('p');
+				description.textContent = meta.description;
+				panel.append(heading, description, renderTable(meta.accessor(snapshot)));
+				panelFragment.append(panel);
+			});
+
+			tabBar?.replaceChildren(tabFragment);
+			panelsHost?.replaceChildren(panelFragment);
+			const tabToActivate = defaultTab || tabBar?.querySelector('.tab')?.dataset.tab;
+			if (tabToActivate) {
+				activateTab(tabToActivate);
+			}
+			if (generatedAtField) {
+				generatedAtField.textContent = formatTimestamp(snapshot.generatedAt);
+			}
+		};
+
+		const loadSnapshot = async () => {
+			try {
+				const response = await fetch('/api/leaderboard', { cache: 'no-store' });
+				if (!response.ok) {
+					throw new Error('Request failed');
+				}
+				const payload = await response.json();
+				if (!payload || typeof payload !== 'object') {
+					throw new Error('Unexpected response');
+				}
+				renderSnapshot(payload);
+			} catch (error) {
+				console.error('Failed to load leaderboard', error);
+				showStatus('Unable to load the leaderboard right now. Please try again later.');
+			}
+		};
+
+		loadSnapshot();
+	</script>
+</body>
+
+</html>

@@ -5,6 +5,10 @@ import {
 	getVanityResolution,
 	SteamIdentifierError,
 } from "~/server/steam";
+import {
+	MANUAL_REFRESH_COOLDOWN_SECONDS,
+	attemptManualRefreshReservation,
+} from "~/server/database";
 import { getLeaderboardSnapshot } from "~/server/leaderboard";
 import leaderboardBundle from "~/templates/leaderboard.html";
 import profileBundle from "~/templates/profile.html";
@@ -83,6 +87,94 @@ async function createPlaytimeResponse(
 	}
 }
 
+async function createManualRefreshResponse(
+	identifier: string,
+	loadPayload: PlaytimePayloadLoader,
+) {
+	const trimmed = identifier.trim();
+
+	if (!trimmed) {
+		return Response.json(
+			{ error: "Steam identifier is required." },
+			{ status: 400 },
+		);
+	}
+
+	let resolvedSteamID: string;
+
+	try {
+		resolvedSteamID = await getVanityResolution(trimmed);
+	} catch (error) {
+		if (error instanceof SteamIdentifierError) {
+			console.warn(
+				`Steam vanity resolution failed for "${trimmed}": ${error.message}`,
+			);
+			return Response.json(
+				{ error: error.message },
+				{ status: error.status },
+			);
+		}
+
+		console.error(error);
+		return Response.json(
+			{ error: "Unable to resolve the Steam identifier." },
+			{ status: 502 },
+		);
+	}
+
+	const nowSeconds = Math.floor(Date.now() / 1000);
+	const reservation = await attemptManualRefreshReservation(
+		resolvedSteamID,
+		nowSeconds,
+		MANUAL_REFRESH_COOLDOWN_SECONDS,
+	);
+
+	if (!reservation.allowed) {
+		const retryAfterSeconds = Math.max(
+			1,
+			Math.ceil(reservation.retryAfterSeconds),
+		);
+
+		return Response.json(
+			{
+				error: "Manual refresh is limited to once per hour.",
+				retryAfterSeconds: reservation.retryAfterSeconds,
+			},
+			{
+				status: 429,
+				headers: {
+					"Retry-After": retryAfterSeconds.toString(),
+					"Cache-Control": "no-store",
+				},
+			},
+		);
+	}
+
+	try {
+		const payload = await loadPayload(resolvedSteamID);
+		return Response.json(
+			{
+				...payload,
+				steamID: resolvedSteamID,
+				resolvedFrom:
+					resolvedSteamID === trimmed ? undefined : trimmed,
+				cooldownSeconds: MANUAL_REFRESH_COOLDOWN_SECONDS,
+			},
+			{
+				headers: {
+					"Cache-Control": "no-store",
+				},
+			},
+		);
+	} catch (error) {
+		console.error(error);
+		return Response.json(
+			{ error: "Unable to refresh playtime data from Steam." },
+			{ status: 502 },
+		);
+	}
+}
+
 const server = Bun.serve({
 	port: DEFAULT_PORT,
 	development: developmentMode
@@ -103,6 +195,24 @@ const server = Bun.serve({
 			GET: async (req) => {
 				return createPlaytimeResponse(req.params.identifier ?? "", (steamID) =>
 					getPlaytimePayload(steamID),
+				);
+			},
+		},
+		"/api/playtime/deck/:identifier/refresh": {
+			POST: async (req) => {
+				return createManualRefreshResponse(
+					req.params.identifier ?? "",
+					(steamID) =>
+						getDeckPlaytimePayload(steamID, { forceRefresh: true }),
+				);
+			},
+		},
+		"/api/playtime/:identifier/refresh": {
+			POST: async (req) => {
+				return createManualRefreshResponse(
+					req.params.identifier ?? "",
+					(steamID) =>
+						getPlaytimePayload(steamID, { forceRefresh: true }),
 				);
 			},
 		},

@@ -10,6 +10,7 @@ const sql =
 		: new SQL(cacheUrl, { adapter: "sqlite" });
 
 export const PLAYTIME_TTL_SECONDS = 60 * 60 * 24;
+export const MANUAL_REFRESH_COOLDOWN_SECONDS = 60 * 60;
 
 await sql`PRAGMA journal_mode = WAL`;
 
@@ -47,6 +48,13 @@ await sql`
 		appid INTEGER PRIMARY KEY,
 		name TEXT,
 		total_minutes INTEGER NOT NULL
+	)
+`;
+
+await sql`
+	CREATE TABLE IF NOT EXISTS playtime_refresh_locks (
+		steam_id TEXT PRIMARY KEY,
+		requested_at INTEGER NOT NULL
 	)
 `;
 
@@ -722,6 +730,38 @@ export async function getLeaderboardAggregates(): Promise<LeaderboardAggregateSn
 		totalGameCount: coerceNumber(row?.total_game_count),
 		totalMinutes: coerceNumber(row?.total_minutes),
 	};
+}
+
+export async function attemptManualRefreshReservation(
+	steamId: string,
+	now: number,
+	cooldownSeconds: number,
+): Promise<
+	| { allowed: true }
+	| { allowed: false; retryAfterSeconds: number }
+> {
+	const threshold = Math.max(0, now - cooldownSeconds);
+	const rows = await sql`
+		INSERT INTO playtime_refresh_locks (steam_id, requested_at)
+		VALUES (${steamId}, ${now})
+		ON CONFLICT(steam_id)
+		DO UPDATE SET requested_at = CASE
+			WHEN playtime_refresh_locks.requested_at <= ${threshold} THEN excluded.requested_at
+			ELSE playtime_refresh_locks.requested_at
+		END
+		RETURNING requested_at
+	`;
+	const stored = coerceNumber(rows[0]?.requested_at);
+	if (stored === now) {
+		return { allowed: true };
+	}
+
+	const retryAfterSeconds = Math.max(
+		0,
+		cooldownSeconds - (now - stored),
+	);
+
+	return { allowed: false, retryAfterSeconds };
 }
 
 export interface AggregateTopGame {

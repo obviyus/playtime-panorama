@@ -40,8 +40,10 @@
 
 		.download-actions {
 			display: flex;
+			flex-wrap: wrap;
 			align-items: center;
 			justify-content: center;
+			gap: clamp(0.75rem, 2.5vw, 1.5rem);
 			padding: clamp(2.5rem, 4vw, 4rem) clamp(1.25rem, 3vw, 2.25rem) clamp(3rem, 6vw, 5rem);
 		}
 
@@ -84,6 +86,30 @@
 			box-shadow: none;
 			background: rgba(33, 40, 72, 0.5);
 			border-color: rgba(103, 118, 182, 0.35);
+		}
+
+		.download-button .button-icon {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			flex-shrink: 0;
+			pointer-events: none;
+		}
+
+		.download-button .button-icon svg {
+			width: clamp(0.95rem, 1.4vw, 1.1rem);
+			height: clamp(0.95rem, 1.4vw, 1.1rem);
+		}
+
+		.download-button .button-label {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			white-space: nowrap;
+		}
+
+		.refresh-button[data-state="cooldown"] {
+			opacity: 0.75;
 		}
 
 		.games-stage {
@@ -301,8 +327,32 @@
 			<section class="games-grid" id="games"></section>
 		</div>
 		<div class="download-actions">
+			<button type="button" id="refresh-button" class="download-button refresh-button" disabled>
+				<span class="button-icon" aria-hidden="true">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+						stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+						class="lucide lucide-refresh-cw-icon lucide-refresh-cw">
+						<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+						<path d="M21 3v5h-5" />
+						<path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+						<path d="M8 16H3v5" />
+					</svg>
+				</span>
+				<span class="button-label">Refresh data</span>
+			</button>
 			<button type="button" id="download-button" class="download-button" disabled>
-				Download mosaic
+				<span class="button-icon" aria-hidden="true">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+						stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+						class="lucide lucide-image-down-icon lucide-image-down">
+						<path
+							d="M10.3 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10l-3.1-3.1a2 2 0 0 0-2.814.014L6 21" />
+						<path d="m14 19 3 3v-5.5" />
+						<path d="m17 22 3-3" />
+						<circle cx="9" cy="9" r="2" />
+					</svg>
+				</span>
+				<span class="button-label">Download mosaic</span>
 			</button>
 		</div>
 	</main>
@@ -360,19 +410,46 @@
 		const stageEl = document.getElementById('games-stage');
 		const gamesContainer = document.getElementById('games');
 		const downloadButton = document.getElementById('download-button');
+		const refreshButton = document.getElementById('refresh-button');
+		const downloadLabel = downloadButton?.querySelector('.button-label');
+		const refreshLabel = refreshButton?.querySelector('.button-label');
 		const API_ENDPOINT_BASE = deckOnlyMode
 			? '/api/playtime/deck/'
 			: '/api/playtime/';
+		const REFRESH_ENDPOINT_SUFFIX = '/refresh';
 		const DOWNLOAD_LABEL_DEFAULT = deckOnlyMode
 			? 'Download Deck mosaic'
 			: 'Download mosaic';
 		const DOWNLOAD_LABEL_BUSY = 'Preparing...';
 		const DOWNLOAD_LABEL_ERROR = 'Download failed — retry';
+		const REFRESH_LABEL_DEFAULT = deckOnlyMode
+			? 'Refresh Deck data'
+			: 'Refresh data';
+		const REFRESH_LABEL_BUSY = 'Refreshing...';
+		const REFRESH_LABEL_ERROR = 'Refresh failed — retry';
+		const REFRESH_FALLBACK_COOLDOWN_SECONDS = 60 * 60;
 		const HEADER_ASPECT = 460 / 215;
 		let sourceGames = [];
 		let resizeFrame = 0;
 		let downloadInProgress = false;
+		let refreshInProgress = false;
+		let refreshCooldownTimer = 0;
+		let refreshCooldownEndsAt = 0;
+		let refreshIdentifier = submittedIdentifier;
 		const imageBitmapCache = new WeakMap();
+		const setButtonLabel = (labelEl, buttonEl, text) => {
+			const next =
+				typeof text === 'string'
+					? text
+					: typeof text === 'number'
+						? String(text)
+						: '';
+			if (labelEl) {
+				labelEl.textContent = next;
+			} else if (buttonEl) {
+				buttonEl.textContent = next;
+			}
+		};
 		const getPrimaryMinutes = (game) => {
 			const minutes = deckOnlyMode
 				? Number(game?.playtime_deck_forever ?? 0)
@@ -388,31 +465,149 @@
 			switch (state) {
 				case 'ready': {
 					downloadButton.disabled = false;
-					downloadButton.textContent = DOWNLOAD_LABEL_DEFAULT;
+					setButtonLabel(downloadLabel, downloadButton, DOWNLOAD_LABEL_DEFAULT);
 					downloadButton.dataset.state = 'ready';
 					break;
 				}
 				case 'busy': {
 					downloadButton.disabled = true;
-					downloadButton.textContent = DOWNLOAD_LABEL_BUSY;
+					setButtonLabel(downloadLabel, downloadButton, DOWNLOAD_LABEL_BUSY);
 					downloadButton.dataset.state = 'busy';
 					break;
 				}
 				case 'error': {
 					downloadButton.disabled = false;
-					downloadButton.textContent = DOWNLOAD_LABEL_ERROR;
+					setButtonLabel(downloadLabel, downloadButton, DOWNLOAD_LABEL_ERROR);
 					downloadButton.dataset.state = 'error';
 					break;
 				}
 				default: {
 					downloadButton.disabled = true;
-					downloadButton.textContent = DOWNLOAD_LABEL_DEFAULT;
+					setButtonLabel(downloadLabel, downloadButton, DOWNLOAD_LABEL_DEFAULT);
 					downloadButton.dataset.state = 'disabled';
 				}
 			}
 		};
 
 		setDownloadState('disabled');
+
+		const clearRefreshCooldownTimer = () => {
+			if (refreshCooldownTimer) {
+				clearTimeout(refreshCooldownTimer);
+				refreshCooldownTimer = 0;
+			}
+		};
+
+		const isRefreshCoolingDown = () => refreshCooldownEndsAt > Date.now();
+
+		const formatRefreshCooldownLabel = (seconds) => {
+			if (!Number.isFinite(seconds) || seconds <= 0) {
+				return 'Refresh soon';
+			}
+			if (seconds >= 3600) {
+				const hours = Math.max(1, Math.round(seconds / 3600));
+				return hours > 1 ? `Try again in ${hours}h` : 'Try again in 1h';
+			}
+			if (seconds >= 120) {
+				const minutes = Math.ceil(seconds / 60);
+				return `Try again in ${minutes}m`;
+			}
+			if (seconds >= 60) {
+				return 'Try again in 1m';
+			}
+			return `Try again in ${Math.max(1, Math.ceil(seconds))}s`;
+		};
+
+		const setRefreshState = (state, meta = {}) => {
+			if (!refreshButton) {
+				return;
+			}
+
+			switch (state) {
+				case 'ready': {
+					clearRefreshCooldownTimer();
+					refreshCooldownEndsAt = 0;
+					refreshButton.disabled = false;
+					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_DEFAULT);
+					refreshButton.dataset.state = 'ready';
+					refreshButton.removeAttribute('title');
+					break;
+				}
+				case 'busy': {
+					refreshButton.disabled = true;
+					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_BUSY);
+					refreshButton.dataset.state = 'busy';
+					refreshButton.removeAttribute('title');
+					break;
+				}
+				case 'error': {
+					clearRefreshCooldownTimer();
+					refreshCooldownEndsAt = 0;
+					refreshButton.disabled = false;
+					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_ERROR);
+					refreshButton.dataset.state = 'error';
+					refreshButton.removeAttribute('title');
+					break;
+				}
+				case 'cooldown': {
+					const seconds =
+						typeof meta.retryAfterSeconds === 'number' && Number.isFinite(meta.retryAfterSeconds)
+							? Math.max(1, meta.retryAfterSeconds)
+							: REFRESH_FALLBACK_COOLDOWN_SECONDS;
+					const label = formatRefreshCooldownLabel(seconds);
+					refreshButton.disabled = true;
+					setButtonLabel(refreshLabel, refreshButton, label);
+					refreshButton.dataset.state = 'cooldown';
+					refreshButton.title = 'Manual refresh is limited to once per hour.';
+					clearRefreshCooldownTimer();
+					refreshCooldownEndsAt = Date.now() + seconds * 1000;
+					refreshCooldownTimer = window.setTimeout(() => {
+						refreshCooldownTimer = 0;
+						refreshCooldownEndsAt = 0;
+						if (sourceGames.length) {
+							setRefreshState('ready');
+						} else {
+							setRefreshState('disabled');
+						}
+					}, seconds * 1000);
+					break;
+				}
+				default: {
+					clearRefreshCooldownTimer();
+					refreshCooldownEndsAt = 0;
+					refreshButton.disabled = true;
+					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_DEFAULT);
+					refreshButton.dataset.state = 'disabled';
+					refreshButton.removeAttribute('title');
+				}
+			}
+		};
+
+		const applyRefreshCooldown = (seconds) => {
+			setRefreshState('cooldown', { retryAfterSeconds: seconds });
+		};
+
+		const getRefreshLookupIdentifier = () => {
+			const candidate =
+				typeof resolvedSteamId64 === 'string' && resolvedSteamId64.trim().length
+					? resolvedSteamId64
+					: refreshIdentifier;
+			if (candidate && typeof candidate === 'string') {
+				const trimmed = candidate.trim();
+				if (trimmed.length) {
+					return trimmed;
+				}
+			}
+			if (typeof submittedIdentifier === 'string') {
+				const trimmed = submittedIdentifier.trim();
+				if (trimmed.length) {
+					return trimmed;
+				}
+			}
+			return '';
+		};
+
+		setRefreshState('disabled');
 
 		const waitForImageLoad = (img) => {
 			if (!img) {
@@ -576,6 +771,104 @@
 			}, 4000);
 		};
 
+		const requestManualRefresh = async () => {
+			const lookupIdentifier = getRefreshLookupIdentifier();
+			if (!lookupIdentifier) {
+				throw new Error('Missing Steam identifier for refresh.');
+			}
+
+			const response = await fetch(
+				`${API_ENDPOINT_BASE}${encodeURIComponent(lookupIdentifier)}${REFRESH_ENDPOINT_SUFFIX}`,
+				{
+					method: 'POST',
+					headers: {
+						Accept: 'application/json',
+					},
+				},
+			);
+
+			if (response.status === 429) {
+				const retryPayload = await response.json().catch(() => ({}));
+				const retryHeader = Number.parseInt(
+					response.headers.get('Retry-After') ?? '',
+					10,
+				);
+				const retryAfterSeconds =
+					typeof retryPayload?.retryAfterSeconds === 'number' &&
+						Number.isFinite(retryPayload.retryAfterSeconds)
+						? retryPayload.retryAfterSeconds
+						: Number.isFinite(retryHeader) && retryHeader > 0
+							? retryHeader
+							: REFRESH_FALLBACK_COOLDOWN_SECONDS;
+				applyRefreshCooldown(retryAfterSeconds);
+				const error = new Error(
+					typeof retryPayload?.error === 'string'
+						? retryPayload.error
+						: 'Manual refresh is limited to once per hour.',
+				);
+				error.code = 'cooldown';
+				throw error;
+			}
+
+			if (!response.ok) {
+				const errorBody = await response.json().catch(() => ({}));
+				const message =
+					typeof errorBody?.error === 'string'
+						? errorBody.error
+						: 'Unable to refresh playtime data right now.';
+				const error = new Error(message);
+				error.status = response.status;
+				throw error;
+			}
+
+			const payload = await response.json();
+			const cooldownSeconds =
+				typeof payload?.cooldownSeconds === 'number' &&
+					Number.isFinite(payload.cooldownSeconds)
+					? payload.cooldownSeconds
+					: REFRESH_FALLBACK_COOLDOWN_SECONDS;
+
+			applyRefreshCooldown(cooldownSeconds);
+			applyPlaytimePayload(payload);
+
+			return payload;
+		};
+
+		const handleRefreshClick = async (event) => {
+			event?.preventDefault();
+			if (refreshInProgress || isRefreshCoolingDown()) {
+				return;
+			}
+
+			const identifier = getRefreshLookupIdentifier();
+			if (!identifier) {
+				return;
+			}
+
+			refreshInProgress = true;
+			setRefreshState('busy');
+
+			try {
+				await requestManualRefresh();
+			} catch (error) {
+				if (error && typeof error === 'object' && error.code === 'cooldown') {
+					// Cooldown already enforced, nothing else to do.
+				} else {
+					console.error(error);
+					setRefreshState('error');
+				}
+			} finally {
+				refreshInProgress = false;
+				if (!isRefreshCoolingDown()) {
+					if (sourceGames.length) {
+						setRefreshState('ready');
+					} else {
+						setRefreshState('disabled');
+					}
+				}
+			}
+		};
+
 		const handleDownloadClick = async (event) => {
 			event?.preventDefault();
 			if (downloadInProgress) {
@@ -605,6 +898,12 @@
 		if (downloadButton) {
 			downloadButton.addEventListener('click', (event) => {
 				void handleDownloadClick(event);
+			});
+		}
+
+		if (refreshButton) {
+			refreshButton.addEventListener('click', (event) => {
+				void handleRefreshClick(event);
 			});
 		}
 
@@ -780,6 +1079,7 @@
 
 			if (!playable.length) {
 				gamesContainer.replaceChildren();
+				setRefreshState('disabled');
 				showError(
 					deckOnlyMode
 						? {
@@ -807,6 +1107,7 @@
 				statusEl?.classList.add('error');
 				statusEl?.classList.remove('hidden');
 				setDownloadState('disabled');
+				setRefreshState('disabled');
 				return;
 			}
 
@@ -859,12 +1160,14 @@
 				statusEl.textContent = '';
 			}
 			setDownloadState('disabled');
+			setRefreshState('disabled');
 		};
 
 		const renderGames = (games) => {
 			sourceGames = Array.isArray(games) ? games : [];
 			if (!sourceGames.length) {
 				setDownloadState('disabled');
+				setRefreshState('disabled');
 				const message = deckOnlyMode
 					? {
 						title: 'No Steam Deck playtime yet',
@@ -878,6 +1181,9 @@
 				return;
 			}
 			placeGames();
+			if (!isRefreshCoolingDown()) {
+				setRefreshState('ready');
+			}
 		};
 
 		window.addEventListener('resize', () => {
@@ -912,10 +1218,12 @@
 					? input
 					: config.body ?? config.title ?? 'Unknown error';
 			console.error(logMessage);
+			setRefreshState('disabled');
 			statusEl?.classList.add('error');
 			statusEl?.classList.remove('hidden');
 			if (!statusEl) {
 				setDownloadState('disabled');
+				setRefreshState('disabled');
 				return;
 			}
 
@@ -990,6 +1298,48 @@
 			setDownloadState('disabled');
 		};
 
+		const applyPlaytimePayload = (payload) => {
+			if (!payload || typeof payload !== 'object') {
+				renderGames([]);
+				return;
+			}
+
+			const canonicalId =
+				typeof payload.steamID === 'string' && isSteamId64(payload.steamID)
+					? payload.steamID
+					: null;
+			if (canonicalId) {
+				resolvedSteamId64 = canonicalId;
+				refreshIdentifier = canonicalId;
+			} else if (typeof payload.steamID === 'string') {
+				const trimmed = payload.steamID.trim();
+				if (trimmed) {
+					refreshIdentifier = trimmed;
+				}
+			}
+
+			const resolvedFrom =
+				typeof payload.resolvedFrom === 'string'
+					? payload.resolvedFrom.trim()
+					: '';
+			const nextDisplay =
+				resolvedFrom ||
+				resolvedSteamId64 ||
+				displayIdentifier ||
+				submittedIdentifier ||
+				'';
+			if (nextDisplay && nextDisplay !== displayIdentifier) {
+				displayIdentifier = nextDisplay;
+				updateDocumentTitle(displayIdentifier);
+			} else if (!displayIdentifier && nextDisplay) {
+				displayIdentifier = nextDisplay;
+				updateDocumentTitle(displayIdentifier);
+			}
+
+			const games = Array.isArray(payload.games) ? payload.games : [];
+			renderGames(games);
+		};
+
 		if (!submittedIdentifier) {
 			showError(
 				deckOnlyMode
@@ -1026,30 +1376,7 @@
 				}
 
 				const payload = await response.json();
-				if (payload && typeof payload === 'object') {
-					const canonicalId =
-						typeof payload.steamID === 'string' && isSteamId64(payload.steamID)
-							? payload.steamID
-							: null;
-					if (canonicalId) {
-						resolvedSteamId64 = canonicalId;
-					}
-
-					const resolvedFrom =
-						typeof payload.resolvedFrom === 'string'
-							? payload.resolvedFrom.trim()
-							: '';
-					const nextDisplay =
-						resolvedFrom || resolvedSteamId64 || displayIdentifier || '';
-					if (nextDisplay && nextDisplay !== displayIdentifier) {
-						displayIdentifier = nextDisplay;
-						updateDocumentTitle(displayIdentifier);
-					} else if (!displayIdentifier && nextDisplay) {
-						displayIdentifier = nextDisplay;
-						updateDocumentTitle(displayIdentifier);
-					}
-				}
-				renderGames(payload.games ?? []);
+				applyPlaytimePayload(payload);
 			} catch (error) {
 				console.error(error);
 				const status =

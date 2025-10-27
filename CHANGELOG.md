@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/obviyus/playtime-panorama/compare/v1.7.0...v1.8.0) (2025-10-27)
+
+
+### Features
+
+* improved leaderboard stats ([e78bae1](https://github.com/obviyus/playtime-panorama/commit/e78bae1be1946c411ba40233f9012f951533bb0d))
+
 # [1.7.0](https://github.com/obviyus/playtime-panorama/compare/v1.6.0...v1.7.0) (2025-10-26)
 
 

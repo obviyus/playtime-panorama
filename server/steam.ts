@@ -39,6 +39,46 @@ const STEAM_VANITY_API_BASE =
 	"https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/";
 const steamIdPattern = /^\d{17}$/;
 
+const steamApiKeyList: string[] = (() => {
+	const csv = Bun.env.STEAM_API_KEYS;
+	if (csv) {
+		const keys = csv
+			.split(",")
+			.map((key) => key.trim())
+			.filter(Boolean);
+		if (keys.length > 0) {
+			return keys;
+		}
+	}
+
+	const fallbackKey = Bun.env.STEAM_API_KEY?.trim();
+	if (fallbackKey) {
+		return [fallbackKey];
+	}
+
+	return [];
+})();
+
+let steamApiKeyCursor = 0;
+
+function resolveSteamApiKey(override?: string): string {
+	const trimmedOverride = override?.trim();
+	if (trimmedOverride) {
+		return trimmedOverride;
+	}
+
+	if (steamApiKeyList.length === 0) {
+		throw new Error("STEAM_API_KEY or STEAM_API_KEYS must be configured");
+	}
+
+	const key = steamApiKeyList[steamApiKeyCursor];
+	if (key === undefined) {
+		throw new Error("Steam API key rotation failed due to missing key");
+	}
+	steamApiKeyCursor = (steamApiKeyCursor + 1) % steamApiKeyList.length;
+	return key;
+}
+
 function buildSteamRequestUrl(steamID: string, apiKey: string) {
 	const params = new URLSearchParams({
 		key: apiKey,
@@ -87,10 +127,15 @@ export async function getVanityResolution(rawIdentifier: string) {
 	}
 
 	console.log(`No cached vanity resolution for "${identifier}", fetching...`);
-	const apiKey = Bun.env.STEAM_API_KEY;
-
-	if (!apiKey) {
-		throw new SteamIdentifierError("STEAM_API_KEY is not configured", 500);
+	let apiKey: string;
+	try {
+		apiKey = resolveSteamApiKey();
+	} catch (error) {
+		const message =
+			error instanceof Error
+				? error.message
+				: "STEAM_API_KEY or STEAM_API_KEYS must be configured";
+		throw new SteamIdentifierError(message, 500);
 	}
 
 	const requestUrl = buildVanityResolveUrl(identifier, apiKey);
@@ -133,11 +178,7 @@ async function fetchPlaytimeFromSteam(
 	steamID: string,
 	options?: FetchPlaytimeOptions,
 ): Promise<CachedPlaytimePayload> {
-	const apiKey = options?.apiKeyOverride ?? Bun.env.STEAM_API_KEY;
-
-	if (!apiKey) {
-		throw new Error("STEAM_API_KEY is not configured");
-	}
+	const apiKey = resolveSteamApiKey(options?.apiKeyOverride);
 
 	const requestUrl = buildSteamRequestUrl(steamID, apiKey);
 	const steamResponse = await fetch(requestUrl);

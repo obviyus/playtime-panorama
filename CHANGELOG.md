@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/obviyus/playtime-panorama/compare/v1.13.0...v1.14.0) (2025-10-27)
+
+
+### Features
+
+* manual refresh button ([5b007d6](https://github.com/obviyus/playtime-panorama/commit/5b007d6f24cf7a14333f685ee01e69a30ef76b3f))
+
 # [1.13.0](https://github.com/obviyus/playtime-panorama/compare/v1.12.0...v1.13.0) (2025-10-27)
 
 

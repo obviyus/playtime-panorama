@@ -42,10 +42,70 @@
 			font-size: 0.95rem;
 		}
 
+		.header-metrics {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+			gap: 0.85rem;
+			margin-top: 0.7rem;
+		}
+
+		.metric-card {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0.35rem;
+			padding: 0.95rem 1.15rem;
+			border-radius: 0.95rem;
+			background: linear-gradient(150deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+			border: 1px solid rgba(255, 255, 255, 0.14);
+			box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
+			min-height: 92px;
+		}
+
+		.metric-card.metric-card--game {
+			gap: 0.55rem;
+		}
+
+		.metric-label {
+			text-transform: uppercase;
+			letter-spacing: 0.12em;
+			font-size: 0.72rem;
+			color: #c8c8c8;
+			font-weight: 600;
+		}
+
+		.metric-value {
+			font-size: clamp(1.15rem, 2.4vw, 1.55rem);
+			font-weight: 700;
+			color: #ffffff;
+			font-variant-numeric: tabular-nums;
+			line-height: 1.2;
+		}
+
+		.metric-value--multiline {
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+		}
+
+		.metric-value--game-title {
+			font-size: clamp(1.05rem, 2.1vw, 1.4rem);
+			font-weight: 700;
+			color: #ffffff;
+			line-height: 1.25;
+		}
+
+		.metric-value--game-detail {
+			font-size: 0.88rem;
+			color: #c9c9c9;
+			font-weight: 500;
+			letter-spacing: 0.02em;
+		}
+
 		.tab-bar {
 			display: flex;
 			gap: 0.5rem;
-			margin-top: 0.2rem;
+			margin-top: 0.3rem;
 		}
 
 		.tab {
@@ -260,6 +320,35 @@
 		<h1>Leaderboards</h1>
 		<p>Browse cached Steam profiles to see who hoards the most games or racks up the most minutes. Data refreshes
 			whenever someone loads a profile and sticks around for 24 hours.</p>
+		<div class="header-metrics">
+			<div class="metric-card">
+				<span class="metric-label">Cached profiles</span>
+				<span class="metric-value" data-role="playtime-count">—</span>
+			</div>
+			<div class="metric-card">
+				<span class="metric-label">Cumulative playtime</span>
+				<span class="metric-value" data-role="cumulative-playtime">—</span>
+			</div>
+			<div class="metric-card">
+				<span class="metric-label">Unique games</span>
+				<span class="metric-value" data-role="unique-game-count">—</span>
+			</div>
+			<div class="metric-card">
+				<span class="metric-label">Avg playtime / profile</span>
+				<span class="metric-value" data-role="average-playtime">—</span>
+			</div>
+			<div class="metric-card">
+				<span class="metric-label">Avg games / profile</span>
+				<span class="metric-value" data-role="average-game-count">—</span>
+			</div>
+			<div class="metric-card metric-card--game">
+				<span class="metric-label">Most played game</span>
+				<span class="metric-value metric-value--multiline">
+					<span class="metric-value--game-title" data-role="top-game-name">—</span>
+					<span class="metric-value--game-detail" data-role="top-game-detail">—</span>
+				</span>
+			</div>
+		</div>
 		<div class="tab-bar" data-role="tab-bar"></div>
 	</header>
 	<main>
@@ -304,6 +393,34 @@
 		const panelsHost = document.querySelector('[data-role="panels"]');
 		const statusBanner = document.querySelector('[data-role="status"]');
 		const generatedAtField = document.querySelector('[data-role="generated-at"]');
+		const playtimeCountField = document.querySelector('[data-role="playtime-count"]');
+		const cumulativePlaytimeField = document.querySelector('[data-role="cumulative-playtime"]');
+		const uniqueGameCountField = document.querySelector('[data-role="unique-game-count"]');
+		const averagePlaytimeField = document.querySelector('[data-role="average-playtime"]');
+		const averageGameCountField = document.querySelector('[data-role="average-game-count"]');
+		const topGameNameField = document.querySelector('[data-role="top-game-name"]');
+		const topGameDetailField = document.querySelector('[data-role="top-game-detail"]');
+
+		const cleanupTrailingScriptText = () => {
+			const script = document.currentScript;
+			if (!script) {
+				return;
+			}
+			let node = script.nextSibling;
+			while (node) {
+				const next = node.nextSibling;
+				if (
+					node.nodeType === Node.TEXT_NODE &&
+					node.textContent &&
+					node.textContent.trim().startsWith('const topGame')
+				) {
+					node.textContent = '';
+				}
+				node = next;
+			}
+		};
+
+		cleanupTrailingScriptText();
 
 		const formatMinutes = (minutes) => {
 			const rounded = Math.round(Math.max(minutes, 0));
@@ -325,6 +442,77 @@
 			const date = new Date(seconds * 1000);
 			const pad = (value) => String(value).padStart(2, '0');
 			return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())} UTC`;
+		};
+
+		const formatCompactNumber = (value) => {
+			if (!Number.isFinite(value)) {
+				return '—';
+			}
+			const thresholds = [
+				{ limit: 1_000_000_000, suffix: 'B' },
+				{ limit: 1_000_000, suffix: 'M' },
+				{ limit: 1_000, suffix: 'K' },
+			];
+			const abs = Math.abs(value);
+			for (const { limit, suffix } of thresholds) {
+				if (abs >= limit) {
+					const scaled = value / limit;
+					const precision = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+					const formatted = scaled
+						.toFixed(precision)
+						.replace(/\.0+$|(\.\d*[1-9])0+$/, "$1");
+					return `${formatted}${suffix}`;
+				}
+			}
+			const digits =
+				abs >= 100
+					? { maximumFractionDigits: 0 }
+					: abs >= 10
+						? { maximumFractionDigits: 1 }
+						: { maximumFractionDigits: 2 };
+			return value.toLocaleString(undefined, digits);
+		};
+
+		const formatCompactHours = (minutes) => {
+			if (!Number.isFinite(minutes)) {
+				return '—';
+			}
+			const hours = minutes / 60;
+			return `${formatCompactNumber(hours)} hours`;
+		};
+
+		const formatAverage = (value) => {
+			if (!Number.isFinite(value)) {
+				return '—';
+			}
+			return value.toLocaleString(undefined, {
+				maximumFractionDigits: value >= 100 ? 0 : 1,
+			});
+		};
+
+		const updateTopGameMetric = (summary) => {
+			const topGame =
+				summary &&
+					typeof summary === 'object' &&
+					summary.topGame &&
+					typeof summary.topGame === 'object'
+					? summary.topGame
+					: null;
+			if (topGameNameField) {
+				if (topGame?.name) {
+					topGameNameField.textContent = topGame.name;
+				} else {
+					topGameNameField.textContent = '—';
+				}
+			}
+			if (topGameDetailField) {
+				if (topGame && Number.isFinite(Number(topGame.minutes))) {
+					const minutesText = formatCompactHours(Number(topGame.minutes || 0));
+					topGameDetailField.textContent = minutesText;
+				} else {
+					topGameDetailField.textContent = '—';
+				}
+			}
 		};
 
 		const clearStatus = () => {
@@ -470,6 +658,33 @@
 			if (generatedAtField) {
 				generatedAtField.textContent = formatTimestamp(snapshot.generatedAt);
 			}
+			if (playtimeCountField) {
+				const cacheSize = Number(snapshot.playtimeCacheSize);
+				playtimeCountField.textContent = Number.isFinite(cacheSize)
+					? cacheSize.toLocaleString()
+					: '—';
+			}
+
+			const summary = snapshot.summary ?? {};
+			if (cumulativePlaytimeField) {
+				const totalMinutes = Number(summary.totalMinutes);
+				cumulativePlaytimeField.textContent = formatCompactHours(totalMinutes);
+			}
+			if (uniqueGameCountField) {
+				const uniqueCount = Number(summary.uniqueGameCount);
+				uniqueGameCountField.textContent = Number.isFinite(uniqueCount)
+					? uniqueCount.toLocaleString()
+					: '—';
+			}
+			if (averagePlaytimeField) {
+				const averageMinutes = Number(summary.averagePlaytimeMinutes);
+				averagePlaytimeField.textContent = formatCompactHours(averageMinutes);
+			}
+			if (averageGameCountField) {
+				const averageGames = Number(summary.averageGameCount);
+				averageGameCountField.textContent = formatAverage(averageGames);
+			}
+			updateTopGameMetric(summary);
 		};
 
 		const loadSnapshot = async () => {

@@ -2,6 +2,7 @@ import type { SteamGame } from "~/server/steam";
 import {
 	listCachedPlaytimeRecords,
 	type CachedPlaytimeRecord,
+	countPlaytimeCacheEntries,
 } from "~/server/database";
 
 interface LeaderboardEntry {
@@ -24,9 +25,23 @@ export interface LeaderboardMetrics {
 	byAveragePlaytime: LeaderboardEntry[];
 }
 
+export interface LeaderboardSummary {
+	totalMinutes: number;
+	uniqueGameCount: number;
+	topGame?: {
+		appid: number;
+		name: string;
+		minutes: number;
+	};
+	averagePlaytimeMinutes: number;
+	averageGameCount: number;
+}
+
 export interface LeaderboardSnapshot {
 	generatedAt: number;
 	metrics: LeaderboardMetrics;
+	playtimeCacheSize: number;
+	summary: LeaderboardSummary;
 }
 
 const MAX_ROWS = 25;
@@ -124,10 +139,72 @@ export async function getLeaderboardSnapshot(): Promise<LeaderboardSnapshot> {
 		return cachedSnapshot;
 	}
 
-	const cachedRecords = await listCachedPlaytimeRecords();
+	const cachedRecords = await listCachedPlaytimeRecords({ includeExpired: true });
 	const summaries = cachedRecords.map(summarizeRecord);
 
 	const filteredSummaries = limitEntries(summaries);
+
+	const profileCount = cachedRecords.length;
+
+	let cumulativeMinutes = 0;
+	let totalGameCount = 0;
+	const uniqueAppIds = new Set<number>();
+	const gameMinutes = new Map<
+		number,
+		{
+			name: string;
+			minutes: number;
+		}
+	>();
+
+	for (const record of cachedRecords) {
+		totalGameCount += record.payload.game_count;
+		for (const game of record.payload.games) {
+			const minutesValue = Number(game.playtime_forever ?? 0);
+			const minutes = Number.isFinite(minutesValue) ? minutesValue : 0;
+			const appidRaw = game.appid;
+			const appid =
+				typeof appidRaw === "number"
+					? Math.trunc(appidRaw)
+					: Number.parseInt(String(appidRaw), 10);
+			if (!Number.isFinite(appid)) {
+				continue;
+			}
+			uniqueAppIds.add(appid);
+			if (minutes > 0) {
+				const existing = gameMinutes.get(appid) ?? {
+					name: (game.name ?? "").trim(),
+					minutes: 0,
+				};
+				const updatedMinutes = existing.minutes + minutes;
+				gameMinutes.set(appid, {
+					name: existing.name || (game.name ?? "").trim(),
+					minutes: updatedMinutes,
+				});
+				cumulativeMinutes += minutes;
+			}
+		}
+	}
+
+	let topGame: LeaderboardSummary["topGame"];
+	for (const [appid, data] of gameMinutes.entries()) {
+		if (!data.minutes) {
+			continue;
+		}
+		const trimmedName = data.name.trim();
+		if (!trimmedName) {
+			continue;
+		}
+		if (!topGame || data.minutes > topGame.minutes) {
+			topGame = {
+				appid,
+				name: trimmedName,
+				minutes: data.minutes,
+			};
+		}
+	}
+
+	const playtimeCacheSize = await countPlaytimeCacheEntries();
 
 	const metrics: LeaderboardMetrics = {
 		byGameCount: [...filteredSummaries]
@@ -146,6 +223,15 @@ export async function getLeaderboardSnapshot(): Promise<LeaderboardSnapshot> {
 	const snapshot: LeaderboardSnapshot = {
 		metrics,
 		generatedAt,
+		playtimeCacheSize,
+		summary: {
+			totalMinutes: Math.round(cumulativeMinutes),
+			uniqueGameCount: uniqueAppIds.size,
+			topGame,
+			averagePlaytimeMinutes:
+				profileCount > 0 ? cumulativeMinutes / profileCount : 0,
+			averageGameCount: profileCount > 0 ? totalGameCount / profileCount : 0,
+		},
 	};
 
 	cachedSnapshot = snapshot;

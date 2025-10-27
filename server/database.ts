@@ -85,11 +85,17 @@ export interface CachedPlaytimePayload {
 
 type PlaytimeRowStatus = "ok" | "expired" | "empty" | "invalid";
 
+interface ParseOptions {
+	allowExpired?: boolean;
+}
+
 function parseCachedPlaytimeRow(
 	row: PlaytimeCacheRow,
+	options?: ParseOptions,
 ): { status: PlaytimeRowStatus; payload: CachedPlaytimePayload | null } {
+	const allowExpired = options?.allowExpired ?? false;
 	const ageSeconds = nowSeconds() - row.fetched_at;
-	if (ageSeconds > PLAYTIME_TTL_SECONDS) {
+	if (!allowExpired && ageSeconds > PLAYTIME_TTL_SECONDS) {
 		return { status: "expired", payload: null };
 	}
 
@@ -167,9 +173,14 @@ export interface CachedPlaytimeRecord {
 	fetchedAt: number;
 }
 
-export async function listCachedPlaytimeRecords(): Promise<
-	CachedPlaytimeRecord[]
-> {
+interface ListCachedPlaytimeOptions {
+	includeExpired?: boolean;
+}
+
+export async function listCachedPlaytimeRecords(
+	options?: ListCachedPlaytimeOptions,
+): Promise<CachedPlaytimeRecord[]> {
+	const includeExpired = options?.includeExpired ?? false;
 	const rows = (await sql`
 		SELECT steam_id, payload, fetched_at
 		FROM playtime_cache
@@ -178,7 +189,9 @@ export async function listCachedPlaytimeRecords(): Promise<
 	const validRecords: CachedPlaytimeRecord[] = [];
 
 	for (const row of rows) {
-		const parsed = parseCachedPlaytimeRow(row);
+		const parsed = parseCachedPlaytimeRow(row, {
+			allowExpired: includeExpired,
+		});
 
 		if (parsed.status === "ok" && parsed.payload) {
 			validRecords.push({
@@ -195,4 +208,14 @@ export async function listCachedPlaytimeRecords(): Promise<
 	}
 
 	return validRecords;
+}
+
+export async function countPlaytimeCacheEntries(): Promise<number> {
+	const rows = await sql`
+		SELECT COUNT(*) AS count
+		FROM playtime_cache
+	`;
+	const row = rows[0] as { count: number | string | bigint } | undefined;
+	const value = row?.count ?? 0;
+	return typeof value === "number" ? value : Number(value);
 }

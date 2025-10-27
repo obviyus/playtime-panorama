@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/obviyus/playtime-panorama/compare/v1.8.0...v1.9.0) (2025-10-27)
+
+
+### Features
+
+* store playtime by os ([790c183](https://github.com/obviyus/playtime-panorama/commit/790c18353411925d27bd6d1a8d2a5d860e21b766))
+
 # [1.8.0](https://github.com/obviyus/playtime-panorama/compare/v1.7.0...v1.8.0) (2025-10-27)
 
 

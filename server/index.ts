@@ -1,5 +1,6 @@
 import "~/server/set-working-directory";
 import {
+	getDeckPlaytimePayload,
 	getPlaytimePayload,
 	getVanityResolution,
 	SteamIdentifierError,
@@ -20,6 +21,72 @@ if (!Bun.env.STEAM_API_KEY) {
 	console.warn("Missing STEAM_API_KEY. /api/playtime requests will fail.");
 }
 
+type PlaytimePayloadLoader = (
+	steamID: string,
+) => Promise<{
+	game_count: number;
+	games: unknown[];
+}>;
+
+async function createPlaytimeResponse(
+	identifier: string,
+	loadPayload: PlaytimePayloadLoader,
+) {
+	const trimmed = identifier.trim();
+
+	if (!trimmed) {
+		return Response.json(
+			{ error: "Steam identifier is required." },
+			{ status: 400 },
+		);
+	}
+
+	let resolvedSteamID: string;
+
+	try {
+		resolvedSteamID = await getVanityResolution(trimmed);
+	} catch (error) {
+		if (error instanceof SteamIdentifierError) {
+			console.warn(
+				`Steam vanity resolution failed for "${trimmed}": ${error.message}`,
+			);
+			return Response.json(
+				{ error: error.message },
+				{ status: error.status },
+			);
+		}
+
+		console.error(error);
+		return Response.json(
+			{ error: "Unable to resolve the Steam identifier." },
+			{ status: 502 },
+		);
+	}
+
+	try {
+		const payload = await loadPayload(resolvedSteamID);
+		return Response.json(
+			{
+				...payload,
+				steamID: resolvedSteamID,
+				resolvedFrom:
+					resolvedSteamID === trimmed ? undefined : trimmed,
+			},
+			{
+				headers: {
+					"Cache-Control": "s-maxage=300, stale-while-revalidate=900",
+				},
+			},
+		);
+	} catch (error) {
+		console.error(error);
+		return Response.json(
+			{ error: "Unable to fetch playtime data from Steam." },
+			{ status: 502 },
+		);
+	}
+}
+
 const server = Bun.serve({
 	port: DEFAULT_PORT,
 	development: developmentMode
@@ -29,62 +96,18 @@ const server = Bun.serve({
 		}
 		: false,
 	routes: {
+		"/api/playtime/deck/:identifier": {
+			GET: async (req) => {
+				return createPlaytimeResponse(req.params.identifier ?? "", (steamID) =>
+					getDeckPlaytimePayload(steamID),
+				);
+			},
+		},
 		"/api/playtime/:identifier": {
 			GET: async (req) => {
-				const { identifier } = req.params;
-
-				if (!identifier) {
-					return Response.json(
-						{ error: "Steam identifier is required." },
-						{ status: 400 },
-					);
-				}
-
-				let resolvedSteamID: string;
-
-				try {
-					resolvedSteamID = await getVanityResolution(identifier);
-				} catch (error) {
-					if (error instanceof SteamIdentifierError) {
-						console.warn(
-							`Steam vanity resolution failed for "${identifier}": ${error.message}`,
-						);
-						return Response.json(
-							{ error: error.message },
-							{ status: error.status },
-						);
-					}
-
-					console.error(error);
-					return Response.json(
-						{ error: "Unable to resolve the Steam identifier." },
-						{ status: 502 },
-					);
-				}
-
-				try {
-					const payload = await getPlaytimePayload(resolvedSteamID);
-
-					return Response.json(
-						{
-							...payload,
-							steamID: resolvedSteamID,
-							resolvedFrom:
-								resolvedSteamID === identifier.trim() ? undefined : identifier,
-						},
-						{
-							headers: {
-								"Cache-Control": "s-maxage=300, stale-while-revalidate=900",
-							},
-						},
-					);
-				} catch (error) {
-					console.error(error);
-					return Response.json(
-						{ error: "Unable to fetch playtime data from Steam." },
-						{ status: 502 },
-					);
-				}
+				return createPlaytimeResponse(req.params.identifier ?? "", (steamID) =>
+					getPlaytimePayload(steamID),
+				);
 			},
 		},
 		"/leaderboard": leaderboardBundle,
@@ -159,6 +182,7 @@ const server = Bun.serve({
 			},
 		},
 		"/": rootBundle,
+		"/deck/:steamID": profileBundle,
 		"/:steamID": profileBundle,
 	},
 	fetch() {

@@ -200,3 +200,22 @@ export async function getPlaytimePayload(
 		apiKeyOverride: options?.apiKeyOverride,
 	});
 }
+
+export type PlaytimeFetchOptions = GetPlaytimePayloadOptions;
+
+export async function getDeckPlaytimePayload(
+	steamID: string,
+	options?: PlaytimeFetchOptions,
+): Promise<CachedPlaytimePayload> {
+	const payload = await getPlaytimePayload(steamID, options);
+	const games = payload.games.filter((game) => {
+		const deckMinutes = Number(game.playtime_deck_forever ?? 0);
+		return Number.isFinite(deckMinutes) && deckMinutes > 10;
+	});
+
+	return {
+		...payload,
+		game_count: games.length,
+		games,
+	};
+}

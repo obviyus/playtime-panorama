@@ -314,32 +314,58 @@
 		const isSteamId64 = (value) =>
 			typeof value === 'string' && STEAM_ID64_PATTERN.test(value.trim());
 
-		const getSteamIdFromPath = () => {
-			const raw = window.location.pathname.slice(1);
-			if (!raw) {
-				return "";
-			}
-			try {
-				return decodeURIComponent(raw);
-			} catch {
-				return raw;
-			}
-		};
+		let deckOnlyMode = false;
+		let matchedIdentifier = '';
 
-		let submittedIdentifier = getSteamIdFromPath();
+		if (typeof URLPattern === 'function') {
+			const deckPattern = new URLPattern({ pathname: '/deck/:identifier' });
+			const deckMatch = deckPattern.exec(window.location);
+			if (deckMatch?.pathname?.groups?.identifier) {
+				deckOnlyMode = true;
+				matchedIdentifier = deckMatch.pathname.groups.identifier;
+			} else {
+				const defaultPattern = new URLPattern({ pathname: '/:identifier' });
+				const defaultMatch = defaultPattern.exec(window.location);
+				if (defaultMatch?.pathname?.groups?.identifier) {
+					matchedIdentifier = defaultMatch.pathname.groups.identifier;
+				}
+			}
+		} else {
+			const rawPath = window.location.pathname || '';
+			deckOnlyMode = rawPath.toLowerCase().startsWith('/deck/');
+			const rawIdentifierSegment = deckOnlyMode ? rawPath.slice(6) : rawPath.replace(/^\/+/, '');
+			matchedIdentifier = rawIdentifierSegment.split('/').find((segment) => segment.length > 0) ?? '';
+		}
+
+		let submittedIdentifier = matchedIdentifier ? matchedIdentifier.trim() : '';
 		let resolvedSteamId64 = isSteamId64(submittedIdentifier)
 			? submittedIdentifier
 			: null;
 		let displayIdentifier = submittedIdentifier;
 
+		const PAGE_TITLE_BASE = deckOnlyMode
+			? "Steam Deck Playtime Panorama"
+			: "Playtime Panorama";
+		const updateDocumentTitle = (identifier) => {
+			const next = typeof identifier === "string" ? identifier.trim() : "";
+			document.title = next ? `${next}'s ${PAGE_TITLE_BASE}` : PAGE_TITLE_BASE;
+		};
+
 		if (displayIdentifier) {
-			document.title = `${displayIdentifier}'s Playtime Panorama`;
+			updateDocumentTitle(displayIdentifier);
+		} else {
+			updateDocumentTitle(submittedIdentifier);
 		}
 		const statusEl = document.getElementById('status');
 		const stageEl = document.getElementById('games-stage');
 		const gamesContainer = document.getElementById('games');
 		const downloadButton = document.getElementById('download-button');
-		const DOWNLOAD_LABEL_DEFAULT = 'Download mosaic';
+		const API_ENDPOINT_BASE = deckOnlyMode
+			? '/api/playtime/deck/'
+			: '/api/playtime/';
+		const DOWNLOAD_LABEL_DEFAULT = deckOnlyMode
+			? 'Download Deck mosaic'
+			: 'Download mosaic';
 		const DOWNLOAD_LABEL_BUSY = 'Preparing...';
 		const DOWNLOAD_LABEL_ERROR = 'Download failed — retry';
 		const HEADER_ASPECT = 460 / 215;
@@ -347,6 +373,12 @@
 		let resizeFrame = 0;
 		let downloadInProgress = false;
 		const imageBitmapCache = new WeakMap();
+		const getPrimaryMinutes = (game) => {
+			const minutes = deckOnlyMode
+				? Number(game?.playtime_deck_forever ?? 0)
+				: Number(game?.playtime_forever ?? 0);
+			return Number.isFinite(minutes) ? minutes : 0;
+		};
 
 		const setDownloadState = (state) => {
 			if (!downloadButton) {
@@ -740,14 +772,25 @@
 			}
 
 			const playable = sourceGames
-				.filter((game) => typeof game?.appid === 'number')
-				.sort((a, b) => (b.playtime_forever ?? 0) - (a.playtime_forever ?? 0));
+				.filter(
+					(game) =>
+						typeof game?.appid === 'number' && getPrimaryMinutes(game) > 0,
+				)
+				.sort((a, b) => getPrimaryMinutes(b) - getPrimaryMinutes(a));
 
 			if (!playable.length) {
-				statusEl?.classList.add('error');
-				statusEl?.classList.remove('hidden');
 				gamesContainer.replaceChildren();
-				setDownloadState('disabled');
+				showError(
+					deckOnlyMode
+						? {
+							title: 'No Steam Deck playtime found',
+							body: 'None of the games in this profile have more than 10 minutes on Steam Deck yet.',
+						}
+						: {
+							title: 'No playtime data available',
+							body: 'We could not find any games with recorded playtime.',
+						},
+				);
 				return;
 			}
 
@@ -755,7 +798,7 @@
 
 			const items = playable.map((game) => ({
 				id: game.appid,
-				hours: Math.max(game.playtime_forever ?? 0, 0) / 60,
+				hours: Math.max(getPrimaryMinutes(game), 0) / 60,
 			}));
 
 			const layout = computeGridLayout(items, stageWidth, stageHeight);
@@ -780,10 +823,10 @@
 				card.className = 'game-card';
 				card.style.gridColumn = `span ${cell.span}`;
 				card.style.gridRow = `span ${cell.span}`;
-				const hours = Math.max(game.playtime_forever ?? 0, 0) / 60;
+				const hours = Math.max(getPrimaryMinutes(game), 0) / 60;
 				card.dataset.hours = `${hours.toLocaleString(undefined, {
 					maximumFractionDigits: hours < 10 ? 1 : 0,
-				})} hrs`;
+				})} hrs${deckOnlyMode ? ' on Deck' : ''}`;
 
 				const img = document.createElement('img');
 				img.loading = 'eager';
@@ -822,10 +865,16 @@
 			sourceGames = Array.isArray(games) ? games : [];
 			if (!sourceGames.length) {
 				setDownloadState('disabled');
-				showError({
-					title: 'No playtime data available',
-					body: 'If this is your profile, make sure your Steam Game Details privacy is set to Public.',
-				});
+				const message = deckOnlyMode
+					? {
+						title: 'No Steam Deck playtime yet',
+						body: 'We could not find any games with more than 10 minutes on Steam Deck. Launch something on your Deck and make sure Steam Game Details privacy is set to Public.',
+					}
+					: {
+						title: 'No playtime data available',
+						body: 'If this is your profile, make sure your Steam Game Details privacy is set to Public.',
+					};
+				showError(message);
 				return;
 			}
 			placeGames();
@@ -942,15 +991,22 @@
 		};
 
 		if (!submittedIdentifier) {
-			showError({
-				title: 'Steam profile required',
-				body: 'Add a SteamID or vanity username to the URL (e.g. /76561198000000000 or /obviyus) to view your collage.',
-			});
+			showError(
+				deckOnlyMode
+					? {
+						title: 'Steam Deck profile required',
+						body: 'Add a SteamID or vanity username after /deck/ (e.g. /deck/76561198000000000) to view your Deck-only collage.',
+					}
+					: {
+						title: 'Steam profile required',
+						body: 'Add a SteamID or vanity username to the URL (e.g. /76561198000000000 or /obviyus) to view your collage.',
+					},
+			);
 		} else {
 			try {
 				showLoader();
 				const lookupIdentifier = submittedIdentifier;
-				const response = await fetch(`/api/playtime/${encodeURIComponent(lookupIdentifier)}`, {
+				const response = await fetch(`${API_ENDPOINT_BASE}${encodeURIComponent(lookupIdentifier)}`, {
 					headers: {
 						Accept: 'application/json',
 					},
@@ -987,10 +1043,10 @@
 						resolvedFrom || resolvedSteamId64 || displayIdentifier || '';
 					if (nextDisplay && nextDisplay !== displayIdentifier) {
 						displayIdentifier = nextDisplay;
-						document.title = `${displayIdentifier}'s Playtime Panorama`;
+						updateDocumentTitle(displayIdentifier);
 					} else if (!displayIdentifier && nextDisplay) {
 						displayIdentifier = nextDisplay;
-						document.title = `${displayIdentifier}'s Playtime Panorama`;
+						updateDocumentTitle(displayIdentifier);
 					}
 				}
 				renderGames(payload.games ?? []);
@@ -1002,11 +1058,17 @@
 						: null;
 				const errorMessage = error instanceof Error ? error.message : '';
 				const normalizedMessage = errorMessage.toLowerCase();
-				let errorConfig = {
-					title: 'Unable to load playtime data',
-					body: "We couldn't load the playtime data.",
-					hint: 'If this is your profile, make sure your Steam Game Details privacy is set to Public and try again.',
-				};
+				let errorConfig = deckOnlyMode
+					? {
+						title: 'Unable to load Steam Deck playtime',
+						body: "We couldn't load the Steam Deck playtime data.",
+						hint: 'If this is your profile, launch a game on Steam Deck and make sure Steam Game Details privacy is set to Public.',
+					}
+					: {
+						title: 'Unable to load playtime data',
+						body: "We couldn't load the playtime data.",
+						hint: 'If this is your profile, make sure your Steam Game Details privacy is set to Public and try again.',
+					};
 
 				if (status === 404) {
 					errorConfig = {

@@ -10,6 +10,11 @@ export interface SteamGame {
 	appid: number;
 	name?: string;
 	playtime_forever: number;
+	playtime_windows_forever?: number;
+	playtime_mac_forever?: number;
+	playtime_linux_forever?: number;
+	playtime_deck_forever?: number;
+	playtime_disconnected?: number;
 	rtime_last_played?: number;
 }
 
@@ -40,6 +45,7 @@ function buildSteamRequestUrl(steamID: string, apiKey: string) {
 		steamid: steamID,
 		include_appinfo: "1",
 		include_played_free_games: "1",
+		include_playtime_platforms: "1",
 	});
 
 	return `${STEAM_API_BASE}?${params.toString()}`;
@@ -161,14 +167,28 @@ async function fetchPlaytimeFromSteam(
 	return payload;
 }
 
+interface GetPlaytimePayloadOptions {
+	forceRefresh?: boolean;
+}
+
 export async function getPlaytimePayload(
 	steamID: string,
+	options?: GetPlaytimePayloadOptions,
 ): Promise<CachedPlaytimePayload> {
-	const cachedPayload = await getCachedPlaytimePayload(steamID);
-	if (cachedPayload) {
-		return cachedPayload;
+	const forceRefresh = options?.forceRefresh ?? false;
+
+	if (!forceRefresh) {
+		const cachedPayload = await getCachedPlaytimePayload(steamID);
+		if (cachedPayload) {
+			return cachedPayload;
+		}
 	}
 
-	console.log(`No cached playtime payload for SteamID ${steamID}, fetching...`);
+	if (!forceRefresh) {
+		console.log(`No cached playtime payload for SteamID ${steamID}, fetching...`);
+	} else {
+		console.log(`Refreshing playtime payload for SteamID ${steamID}...`);
+	}
+
 	return fetchPlaytimeFromSteam(steamID);
 }

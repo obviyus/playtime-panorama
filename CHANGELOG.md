@@ -1,3 +1,16 @@
+# [1.11.0](https://github.com/obviyus/playtime-panorama/compare/v1.10.0...v1.11.0) (2025-10-27)
+
+
+### Bug Fixes
+
+* remove backfill API ([ec3f6d0](https://github.com/obviyus/playtime-panorama/commit/ec3f6d0e7f690ef87f4c9832a3325dc4a66a2bd4))
+
+
+### Features
+
+* add button for Steam Deck playtime ([00336a8](https://github.com/obviyus/playtime-panorama/commit/00336a84c24002538b43942a439a7eceba2d55bf))
+* profile mosaic specific to steam deck playtime ([63cb960](https://github.com/obviyus/playtime-panorama/commit/63cb9602de218261ac604aa375b7373892284dce))
+
 # [1.10.0](https://github.com/obviyus/playtime-panorama/compare/v1.9.0...v1.10.0) (2025-10-27)
 
 

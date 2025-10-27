@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/obviyus/playtime-panorama/compare/v1.15.0...v1.16.0) (2025-10-27)
+
+
+### Features
+
+* rate limit outbound Steam API calls ([cb39263](https://github.com/obviyus/playtime-panorama/commit/cb39263ef334345f99d4fa0c50057ec5f0a6fce6))
+
 # [1.15.0](https://github.com/obviyus/playtime-panorama/compare/v1.14.0...v1.15.0) (2025-10-27)
 
 

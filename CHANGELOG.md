@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/obviyus/playtime-panorama/compare/v1.14.0...v1.15.0) (2025-10-27)
+
+
+### Features
+
+* remove Deck APIs and buttons ([df7ee89](https://github.com/obviyus/playtime-panorama/commit/df7ee8904ad15b6d4737b4913308f27a26d0e4c7))
+
 # [1.14.0](https://github.com/obviyus/playtime-panorama/compare/v1.13.0...v1.14.0) (2025-10-27)
 
 

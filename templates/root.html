@@ -119,38 +119,6 @@
 			outline: none;
 		}
 
-		.cta-button--deck {
-			background-color: rgba(18, 18, 18, 0.92);
-			color: #f3f3f3;
-			border-color: #353535;
-			box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
-		}
-
-		.cta-button--deck:hover,
-		.cta-button--deck:focus-visible {
-			background-color: rgba(24, 24, 24, 0.96);
-			border-color: #4a4a4a;
-			box-shadow: 0 16px 28px rgba(0, 0, 0, 0.4);
-		}
-
-		.cta-button__icon {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			width: 1.1rem;
-			height: 1.1rem;
-		}
-
-		.cta-button__icon img {
-			display: block;
-			width: 100%;
-			height: 100%;
-		}
-
-		.cta-button--deck .cta-button__icon img {
-			filter: brightness(0) invert(1);
-		}
-
 		.cta-button__label {
 			display: inline-flex;
 			align-items: center;
@@ -229,14 +197,8 @@
 			</label>
 			<input id="steam-id" name="steam-id" placeholder="obviyus" required autocomplete="off" />
 			<div class="form-actions">
-				<button type="submit" class="cta-button" data-mode="all">
-					<span class="cta-button__label">View all playtime collage</span>
-				</button>
-				<button type="submit" class="cta-button cta-button--deck" data-mode="deck">
-					<span class="cta-button__icon" aria-hidden="true">
-						<img src="https://upload.wikimedia.org/wikipedia/commons/7/7f/Steam_Deck_favicon.svg" alt="">
-					</span>
-					<span class="cta-button__label">View Steam&nbsp;Deck playtime</span>
+				<button type="submit" class="cta-button">
+					<span class="cta-button__label">View playtime collage</span>
 				</button>
 			</div>
 		</form>
@@ -283,10 +245,7 @@
 			const targetId = normalizeSteamIdentifier(formData.get('steam-id'));
 
 			if (targetId) {
-				const submitter = event.submitter;
-				const mode = submitter?.dataset?.mode ?? 'all';
-				const prefix = mode === 'deck' ? '/deck/' : '/';
-				const url = prefix + encodeURIComponent(targetId);
+				const url = '/' + encodeURIComponent(targetId);
 				window.location.assign(url);
 			}
 		});

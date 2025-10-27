@@ -10,11 +10,6 @@ export interface SteamGame {
 	appid: number;
 	name?: string;
 	playtime_forever: number;
-	playtime_windows_forever?: number;
-	playtime_mac_forever?: number;
-	playtime_linux_forever?: number;
-	playtime_deck_forever?: number;
-	playtime_disconnected?: number;
 	rtime_last_played?: number;
 }
 
@@ -85,7 +80,6 @@ function buildSteamRequestUrl(steamID: string, apiKey: string) {
 		steamid: steamID,
 		include_appinfo: "1",
 		include_played_free_games: "1",
-		include_playtime_platforms: "1",
 	});
 
 	return `${STEAM_API_BASE}?${params.toString()}`;
@@ -240,23 +234,4 @@ export async function getPlaytimePayload(
 	return fetchPlaytimeFromSteam(steamID, {
 		apiKeyOverride: options?.apiKeyOverride,
 	});
-}
-
-export type PlaytimeFetchOptions = GetPlaytimePayloadOptions;
-
-export async function getDeckPlaytimePayload(
-	steamID: string,
-	options?: PlaytimeFetchOptions,
-): Promise<CachedPlaytimePayload> {
-	const payload = await getPlaytimePayload(steamID, options);
-	const games = payload.games.filter((game) => {
-		const deckMinutes = Number(game.playtime_deck_forever ?? 0);
-		return Number.isFinite(deckMinutes) && deckMinutes > 10;
-	});
-
-	return {
-		...payload,
-		game_count: games.length,
-		games,
-	};
 }

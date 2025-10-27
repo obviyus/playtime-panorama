@@ -108,6 +108,26 @@
 			white-space: nowrap;
 		}
 
+		.status-card-button .button-icon {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			flex-shrink: 0;
+			pointer-events: none;
+		}
+
+		.status-card-button .button-icon svg {
+			width: clamp(0.95rem, 1.4vw, 1.1rem);
+			height: clamp(0.95rem, 1.4vw, 1.1rem);
+		}
+
+		.status-card-button .button-label {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			white-space: nowrap;
+		}
+
 		.refresh-button[data-state="cooldown"] {
 			opacity: 0.75;
 		}
@@ -364,26 +384,17 @@
 		const isSteamId64 = (value) =>
 			typeof value === 'string' && STEAM_ID64_PATTERN.test(value.trim());
 
-		let deckOnlyMode = false;
 		let matchedIdentifier = '';
 
 		if (typeof URLPattern === 'function') {
-			const deckPattern = new URLPattern({ pathname: '/deck/:identifier' });
-			const deckMatch = deckPattern.exec(window.location);
-			if (deckMatch?.pathname?.groups?.identifier) {
-				deckOnlyMode = true;
-				matchedIdentifier = deckMatch.pathname.groups.identifier;
-			} else {
-				const defaultPattern = new URLPattern({ pathname: '/:identifier' });
-				const defaultMatch = defaultPattern.exec(window.location);
-				if (defaultMatch?.pathname?.groups?.identifier) {
-					matchedIdentifier = defaultMatch.pathname.groups.identifier;
-				}
+			const defaultPattern = new URLPattern({ pathname: '/:identifier' });
+			const defaultMatch = defaultPattern.exec(window.location);
+			if (defaultMatch?.pathname?.groups?.identifier) {
+				matchedIdentifier = defaultMatch.pathname.groups.identifier;
 			}
 		} else {
 			const rawPath = window.location.pathname || '';
-			deckOnlyMode = rawPath.toLowerCase().startsWith('/deck/');
-			const rawIdentifierSegment = deckOnlyMode ? rawPath.slice(6) : rawPath.replace(/^\/+/, '');
+			const rawIdentifierSegment = rawPath.replace(/^\/+/, '');
 			matchedIdentifier = rawIdentifierSegment.split('/').find((segment) => segment.length > 0) ?? '';
 		}
 
@@ -393,9 +404,7 @@
 			: null;
 		let displayIdentifier = submittedIdentifier;
 
-		const PAGE_TITLE_BASE = deckOnlyMode
-			? "Steam Deck Playtime Panorama"
-			: "Playtime Panorama";
+		const PAGE_TITLE_BASE = "Playtime Panorama";
 		const updateDocumentTitle = (identifier) => {
 			const next = typeof identifier === "string" ? identifier.trim() : "";
 			document.title = next ? `${next}'s ${PAGE_TITLE_BASE}` : PAGE_TITLE_BASE;
@@ -413,18 +422,12 @@
 		const refreshButton = document.getElementById('refresh-button');
 		const downloadLabel = downloadButton?.querySelector('.button-label');
 		const refreshLabel = refreshButton?.querySelector('.button-label');
-		const API_ENDPOINT_BASE = deckOnlyMode
-			? '/api/playtime/deck/'
-			: '/api/playtime/';
+		const API_ENDPOINT_BASE = '/api/playtime/';
 		const REFRESH_ENDPOINT_SUFFIX = '/refresh';
-		const DOWNLOAD_LABEL_DEFAULT = deckOnlyMode
-			? 'Download Deck mosaic'
-			: 'Download mosaic';
+		const DOWNLOAD_LABEL_DEFAULT = 'Download mosaic';
 		const DOWNLOAD_LABEL_BUSY = 'Preparing...';
 		const DOWNLOAD_LABEL_ERROR = 'Download failed — retry';
-		const REFRESH_LABEL_DEFAULT = deckOnlyMode
-			? 'Refresh Deck data'
-			: 'Refresh data';
+		const REFRESH_LABEL_DEFAULT = 'Refresh data';
 		const REFRESH_LABEL_BUSY = 'Refreshing...';
 		const REFRESH_LABEL_ERROR = 'Refresh failed — retry';
 		const REFRESH_FALLBACK_COOLDOWN_SECONDS = 60 * 60;
@@ -437,6 +440,7 @@
 		let refreshCooldownEndsAt = 0;
 		let refreshIdentifier = submittedIdentifier;
 		const imageBitmapCache = new WeakMap();
+		const statusRefreshButtons = new Set();
 		const setButtonLabel = (labelEl, buttonEl, text) => {
 			const next =
 				typeof text === 'string'
@@ -451,9 +455,7 @@
 			}
 		};
 		const getPrimaryMinutes = (game) => {
-			const minutes = deckOnlyMode
-				? Number(game?.playtime_deck_forever ?? 0)
-				: Number(game?.playtime_forever ?? 0);
+			const minutes = Number(game?.playtime_forever ?? 0);
 			return Number.isFinite(minutes) ? minutes : 0;
 		};
 
@@ -491,6 +493,78 @@
 
 		setDownloadState('disabled');
 
+		const updateStatusRefreshButtons = (state, meta = {}) => {
+			if (!statusRefreshButtons.size) {
+				return;
+			}
+
+			const identifierAvailable = Boolean(getRefreshLookupIdentifier());
+
+			for (const entry of statusRefreshButtons) {
+				const button = entry?.button;
+				const label = entry?.label;
+				if (!button || !document.contains(button)) {
+					statusRefreshButtons.delete(entry);
+					continue;
+				}
+
+				const applyLabel = (text) => {
+					setButtonLabel(label, button, text);
+				};
+
+				const applyDisabled = () => {
+					button.disabled = true;
+					button.dataset.state = 'disabled';
+					button.removeAttribute('title');
+					applyLabel(REFRESH_LABEL_DEFAULT);
+				};
+
+				if (!identifierAvailable) {
+					applyDisabled();
+					continue;
+				}
+
+				switch (state) {
+					case 'busy': {
+						button.disabled = true;
+						button.dataset.state = 'busy';
+						button.removeAttribute('title');
+						applyLabel(REFRESH_LABEL_BUSY);
+						break;
+					}
+					case 'error': {
+						button.disabled = false;
+						button.dataset.state = 'error';
+						button.removeAttribute('title');
+						applyLabel(REFRESH_LABEL_ERROR);
+						break;
+					}
+					case 'cooldown': {
+						const seconds =
+							typeof meta.retryAfterSeconds === 'number' && Number.isFinite(meta.retryAfterSeconds)
+								? Math.max(1, meta.retryAfterSeconds)
+								: getRemainingRefreshCooldownSeconds() || REFRESH_FALLBACK_COOLDOWN_SECONDS;
+						button.disabled = true;
+						button.dataset.state = 'cooldown';
+						button.title = 'Manual refresh is limited to once per hour.';
+						applyLabel(formatRefreshCooldownLabel(seconds));
+						break;
+					}
+					case 'ready': {
+						button.disabled = false;
+						button.dataset.state = 'ready';
+						button.removeAttribute('title');
+						applyLabel(REFRESH_LABEL_DEFAULT);
+						break;
+					}
+					case 'disabled':
+					default: {
+						applyDisabled();
+					}
+				}
+			}
+		};
+
 		const clearRefreshCooldownTimer = () => {
 			if (refreshCooldownTimer) {
 				clearTimeout(refreshCooldownTimer);
@@ -499,6 +573,14 @@
 		};
 
 		const isRefreshCoolingDown = () => refreshCooldownEndsAt > Date.now();
+
+		const getRemainingRefreshCooldownSeconds = () => {
+			if (!isRefreshCoolingDown()) {
+				return 0;
+			}
+			const remainingMs = Math.max(0, refreshCooldownEndsAt - Date.now());
+			return Math.max(1, Math.ceil(remainingMs / 1000));
+		};
 
 		const formatRefreshCooldownLabel = (seconds) => {
 			if (!Number.isFinite(seconds) || seconds <= 0) {
@@ -531,6 +613,7 @@
 					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_DEFAULT);
 					refreshButton.dataset.state = 'ready';
 					refreshButton.removeAttribute('title');
+					updateStatusRefreshButtons('ready');
 					break;
 				}
 				case 'busy': {
@@ -538,6 +621,7 @@
 					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_BUSY);
 					refreshButton.dataset.state = 'busy';
 					refreshButton.removeAttribute('title');
+					updateStatusRefreshButtons('busy');
 					break;
 				}
 				case 'error': {
@@ -547,6 +631,7 @@
 					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_ERROR);
 					refreshButton.dataset.state = 'error';
 					refreshButton.removeAttribute('title');
+					updateStatusRefreshButtons('error');
 					break;
 				}
 				case 'cooldown': {
@@ -570,6 +655,7 @@
 							setRefreshState('disabled');
 						}
 					}, seconds * 1000);
+					updateStatusRefreshButtons('cooldown', { retryAfterSeconds: seconds });
 					break;
 				}
 				default: {
@@ -579,6 +665,7 @@
 					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_DEFAULT);
 					refreshButton.dataset.state = 'disabled';
 					refreshButton.removeAttribute('title');
+					updateStatusRefreshButtons('disabled');
 				}
 			}
 		};
@@ -834,22 +921,36 @@
 			return payload;
 		};
 
-		const handleRefreshClick = async (event) => {
-			event?.preventDefault();
+		const executeManualRefresh = async (hooks = {}) => {
 			if (refreshInProgress || isRefreshCoolingDown()) {
-				return;
+				return false;
 			}
 
 			const identifier = getRefreshLookupIdentifier();
 			if (!identifier) {
-				return;
+				return false;
 			}
 
 			refreshInProgress = true;
 			setRefreshState('busy');
+			if (typeof hooks.onStart === 'function') {
+				try {
+					hooks.onStart();
+				} catch {
+					// ignore hook errors
+				}
+			}
 
 			try {
 				await requestManualRefresh();
+				if (typeof hooks.onSuccess === 'function') {
+					try {
+						hooks.onSuccess();
+					} catch {
+						// ignore hook errors
+					}
+				}
+				return true;
 			} catch (error) {
 				if (error && typeof error === 'object' && error.code === 'cooldown') {
 					// Cooldown already enforced, nothing else to do.
@@ -857,6 +958,14 @@
 					console.error(error);
 					setRefreshState('error');
 				}
+				if (typeof hooks.onError === 'function') {
+					try {
+						hooks.onError(error);
+					} catch {
+						// ignore hook errors
+					}
+				}
+				return false;
 			} finally {
 				refreshInProgress = false;
 				if (!isRefreshCoolingDown()) {
@@ -866,7 +975,19 @@
 						setRefreshState('disabled');
 					}
 				}
+				if (typeof hooks.onComplete === 'function') {
+					try {
+						hooks.onComplete();
+					} catch {
+						// ignore hook errors
+					}
+				}
 			}
+		};
+
+		const handleRefreshClick = (event) => {
+			event?.preventDefault();
+			void executeManualRefresh();
 		};
 
 		const handleDownloadClick = async (event) => {
@@ -1080,17 +1201,10 @@
 			if (!playable.length) {
 				gamesContainer.replaceChildren();
 				setRefreshState('disabled');
-				showError(
-					deckOnlyMode
-						? {
-							title: 'No Steam Deck playtime found',
-							body: 'None of the games in this profile have more than 10 minutes on Steam Deck yet.',
-						}
-						: {
-							title: 'No playtime data available',
-							body: 'We could not find any games with recorded playtime.',
-						},
-				);
+				showError({
+					title: 'No playtime data available',
+					body: 'We could not find any games with recorded playtime.',
+				});
 				return;
 			}
 
@@ -1127,7 +1241,7 @@
 				const hours = Math.max(getPrimaryMinutes(game), 0) / 60;
 				card.dataset.hours = `${hours.toLocaleString(undefined, {
 					maximumFractionDigits: hours < 10 ? 1 : 0,
-				})} hrs${deckOnlyMode ? ' on Deck' : ''}`;
+				})} hrs`;
 
 				const img = document.createElement('img');
 				img.loading = 'eager';
@@ -1168,16 +1282,10 @@
 			if (!sourceGames.length) {
 				setDownloadState('disabled');
 				setRefreshState('disabled');
-				const message = deckOnlyMode
-					? {
-						title: 'No Steam Deck playtime yet',
-						body: 'We could not find any games with more than 10 minutes on Steam Deck. Launch something on your Deck and make sure Steam Game Details privacy is set to Public.',
-					}
-					: {
-						title: 'No playtime data available',
-						body: 'If this is your profile, make sure your Steam Game Details privacy is set to Public.',
-					};
-				showError(message);
+				showError({
+					title: 'No playtime data available',
+					body: 'If this is your profile, make sure your Steam Game Details privacy is set to Public.',
+				});
 				return;
 			}
 			placeGames();
@@ -1195,9 +1303,66 @@
 			resizeFrame = requestAnimationFrame(placeGames);
 		});
 
+		const createStatusRefreshAction = () => {
+			if (!refreshButton) {
+				return null;
+			}
+
+			const lookupIdentifier = getRefreshLookupIdentifier();
+			if (!lookupIdentifier) {
+				return null;
+			}
+
+			const actionButton = document.createElement('button');
+			actionButton.type = 'button';
+			actionButton.className = 'status-card-button status-card-refresh';
+
+			const iconTemplate = refreshButton.querySelector('.button-icon');
+			if (iconTemplate) {
+				actionButton.append(iconTemplate.cloneNode(true));
+			}
+
+			const labelSpan = document.createElement('span');
+			labelSpan.className = 'button-label';
+			actionButton.append(labelSpan);
+
+			const entry = { button: actionButton, label: labelSpan };
+			statusRefreshButtons.add(entry);
+
+			setButtonLabel(labelSpan, actionButton, REFRESH_LABEL_DEFAULT);
+
+			actionButton.addEventListener('click', (event) => {
+				event.preventDefault();
+				if (actionButton.disabled) {
+					return;
+				}
+				void executeManualRefresh().then((result) => {
+					if (!result && !document.contains(actionButton)) {
+						statusRefreshButtons.delete(entry);
+					}
+				});
+			});
+
+			if (isRefreshCoolingDown()) {
+				updateStatusRefreshButtons('cooldown', {
+					retryAfterSeconds: getRemainingRefreshCooldownSeconds(),
+				});
+			} else if (refreshInProgress) {
+				updateStatusRefreshButtons('busy');
+			} else if (sourceGames.length) {
+				updateStatusRefreshButtons('ready');
+			} else {
+				updateStatusRefreshButtons('disabled');
+			}
+
+			return actionButton;
+		};
+
 		const showError = (input, link) => {
 			const config =
 				typeof input === 'string' ? { body: input } : { ...(input ?? {}) };
+
+			statusRefreshButtons.clear();
 
 			if (link?.href) {
 				const actions = Array.isArray(config.actions) ? [...config.actions] : [];
@@ -1276,8 +1441,9 @@
 				})
 				: [];
 
+			let actionsEl = null;
 			if (resolvedActions.length) {
-				const actionsEl = document.createElement('div');
+				actionsEl = document.createElement('div');
 				actionsEl.className = 'status-card-actions';
 				for (const action of resolvedActions) {
 					const actionLink = document.createElement('a');
@@ -1292,6 +1458,17 @@
 					actionsEl.append(actionLink);
 				}
 				card.append(actionsEl);
+			}
+
+			const enableRefreshAction = config.disableRefresh !== true;
+			const refreshActionButton = enableRefreshAction ? createStatusRefreshAction() : null;
+			if (refreshActionButton) {
+				if (!actionsEl) {
+					actionsEl = document.createElement('div');
+					actionsEl.className = 'status-card-actions';
+					card.append(actionsEl);
+				}
+				actionsEl.prepend(refreshActionButton);
 			}
 
 			statusEl.append(card);
@@ -1341,17 +1518,10 @@
 		};
 
 		if (!submittedIdentifier) {
-			showError(
-				deckOnlyMode
-					? {
-						title: 'Steam Deck profile required',
-						body: 'Add a SteamID or vanity username after /deck/ (e.g. /deck/76561198000000000) to view your Deck-only collage.',
-					}
-					: {
-						title: 'Steam profile required',
-						body: 'Add a SteamID or vanity username to the URL (e.g. /76561198000000000 or /obviyus) to view your collage.',
-					},
-			);
+			showError({
+				title: 'Steam profile required',
+				body: 'Add a SteamID or vanity username to the URL (e.g. /76561198000000000 or /obviyus) to view your collage.',
+			});
 		} else {
 			try {
 				showLoader();
@@ -1385,23 +1555,18 @@
 						: null;
 				const errorMessage = error instanceof Error ? error.message : '';
 				const normalizedMessage = errorMessage.toLowerCase();
-				let errorConfig = deckOnlyMode
-					? {
-						title: 'Unable to load Steam Deck playtime',
-						body: "We couldn't load the Steam Deck playtime data.",
-						hint: 'If this is your profile, launch a game on Steam Deck and make sure Steam Game Details privacy is set to Public.',
-					}
-					: {
-						title: 'Unable to load playtime data',
-						body: "We couldn't load the playtime data.",
-						hint: 'If this is your profile, make sure your Steam Game Details privacy is set to Public and try again.',
-					};
+				let errorConfig = {
+					title: 'Unable to load playtime data',
+					body: "We couldn't load the playtime data.",
+					hint: 'If this is your profile, make sure your Steam Game Details privacy is set to Public and try again.',
+				};
 
 				if (status === 404) {
 					errorConfig = {
 						title: 'Profile not found',
 						body: "We couldn't find a Steam profile with that identifier.",
 						hint: 'Use the ID from your profile URL (steamcommunity.com/id/... or /profiles/...) or the full steamID64.',
+						disableRefresh: true,
 						actions: [
 							{
 								label: 'Open steamid.io',

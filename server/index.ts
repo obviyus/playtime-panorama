@@ -1,6 +1,5 @@
 import "~/server/set-working-directory";
 import {
-	getDeckPlaytimePayload,
 	getPlaytimePayload,
 	getVanityResolution,
 	SteamIdentifierError,
@@ -184,26 +183,10 @@ const server = Bun.serve({
 		}
 		: false,
 	routes: {
-		"/api/playtime/deck/:identifier": {
-			GET: async (req) => {
-				return createPlaytimeResponse(req.params.identifier ?? "", (steamID) =>
-					getDeckPlaytimePayload(steamID),
-				);
-			},
-		},
 		"/api/playtime/:identifier": {
 			GET: async (req) => {
 				return createPlaytimeResponse(req.params.identifier ?? "", (steamID) =>
 					getPlaytimePayload(steamID),
-				);
-			},
-		},
-		"/api/playtime/deck/:identifier/refresh": {
-			POST: async (req) => {
-				return createManualRefreshResponse(
-					req.params.identifier ?? "",
-					(steamID) =>
-						getDeckPlaytimePayload(steamID, { forceRefresh: true }),
 				);
 			},
 		},
@@ -236,7 +219,6 @@ const server = Bun.serve({
 			},
 		},
 		"/": rootBundle,
-		"/deck/:steamID": profileBundle,
 		"/:steamID": profileBundle,
 	},
 	fetch() {

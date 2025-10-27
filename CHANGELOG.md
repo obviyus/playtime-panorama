@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/obviyus/playtime-panorama/compare/v1.12.0...v1.13.0) (2025-10-27)
+
+
+### Features
+
+* round-robin API keys to avoid hitting rate limits ([6a6412b](https://github.com/obviyus/playtime-panorama/commit/6a6412bab278718fba13ae7547e4b0965e62dbc5))
+
 # [1.12.0](https://github.com/obviyus/playtime-panorama/compare/v1.11.0...v1.12.0) (2025-10-27)
 
 

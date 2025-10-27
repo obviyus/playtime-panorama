@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/obviyus/playtime-panorama/compare/v1.11.0...v1.12.0) (2025-10-27)
+
+
+### Features
+
+* materialized views for leaderboard ([26e3215](https://github.com/obviyus/playtime-panorama/commit/26e32158969239b1b054d35fbe2effce1c70009b))
+
 # [1.11.0](https://github.com/obviyus/playtime-panorama/compare/v1.10.0...v1.11.0) (2025-10-27)
 
 

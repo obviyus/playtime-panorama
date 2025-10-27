@@ -1,3 +1,4 @@
+import Bottleneck from "bottleneck";
 import type { CachedPlaytimePayload } from "~/server/database";
 import {
 	cachePlaytimePayload,
@@ -53,6 +54,21 @@ const steamApiKeyList: string[] = (() => {
 
 	return [];
 })();
+
+const STEAM_RATE_LIMIT_PER_KEY = 200;
+const STEAM_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const steamApiKeyPoolSize = Math.max(1, steamApiKeyList.length);
+
+const steamRequestLimiter = new Bottleneck({
+	maxConcurrent: steamApiKeyPoolSize,
+	reservoir: steamApiKeyPoolSize * STEAM_RATE_LIMIT_PER_KEY,
+	reservoirRefreshAmount: steamApiKeyPoolSize * STEAM_RATE_LIMIT_PER_KEY,
+	reservoirRefreshInterval: STEAM_RATE_LIMIT_WINDOW_MS,
+});
+
+function limitedSteamFetch(input: string, init?: RequestInit) {
+	return steamRequestLimiter.schedule(() => fetch(input, init));
+}
 
 let steamApiKeyCursor = 0;
 
@@ -133,7 +149,7 @@ export async function getVanityResolution(rawIdentifier: string) {
 	}
 
 	const requestUrl = buildVanityResolveUrl(identifier, apiKey);
-	const response = await fetch(requestUrl);
+	const response = await limitedSteamFetch(requestUrl);
 
 	if (!response.ok) {
 		const errorBody = await response.text();
@@ -175,7 +191,7 @@ async function fetchPlaytimeFromSteam(
 	const apiKey = resolveSteamApiKey(options?.apiKeyOverride);
 
 	const requestUrl = buildSteamRequestUrl(steamID, apiKey);
-	const steamResponse = await fetch(requestUrl);
+	const steamResponse = await limitedSteamFetch(requestUrl);
 
 	if (!steamResponse.ok) {
 		const errorBody = await steamResponse.text();

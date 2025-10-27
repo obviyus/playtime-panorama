@@ -10,8 +10,11 @@
     "@types/bun": "latest"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   },
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "bottleneck": "^2.19.5"
+  }
 }

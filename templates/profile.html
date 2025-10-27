@@ -137,6 +137,86 @@
 			display: none;
 		}
 
+		#status.has-message {
+			pointer-events: auto;
+		}
+
+		.status-card {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
+			justify-content: flex-start;
+			gap: clamp(0.6rem, 2vw, 0.9rem);
+			padding: clamp(1.75rem, 5vw, 2.4rem);
+			border-radius: 1.25rem;
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(12, 10, 16, 0.92);
+			box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
+			max-width: min(540px, 92vw);
+			width: 100%;
+			text-align: left;
+			font-size: clamp(1rem, 1.4vw, 1.05rem);
+			line-height: 1.55;
+		}
+
+		.status-card-title {
+			margin: 0;
+			font-size: clamp(1.45rem, 2.2vw, 1.7rem);
+			font-weight: 700;
+			letter-spacing: -0.01em;
+			color: #f5f5f5;
+		}
+
+		.status-card-body {
+			margin: 0;
+			color: rgba(232, 232, 232, 0.88);
+		}
+
+		.status-card-hint {
+			margin: 0;
+			color: rgba(210, 210, 210, 0.75);
+			font-size: 0.94em;
+		}
+
+		.status-card-actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.75rem;
+			width: 100%;
+			margin-top: 0.25rem;
+		}
+
+		.status-card-button {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.4rem;
+			padding: 0.65rem 1.4rem;
+			border-radius: 0.9rem;
+			font-size: 0.95em;
+			font-weight: 600;
+			text-decoration: none;
+			color: #0d0d0d;
+			background: #f5f5f5;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+			transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease,
+				border-color 160ms ease;
+		}
+
+		.status-card-button:hover,
+		.status-card-button:focus-visible {
+			transform: translateY(-1px);
+			background: #ffffff;
+			border-color: rgba(255, 255, 255, 0.2);
+			box-shadow: 0 14px 26px rgba(0, 0, 0, 0.4);
+		}
+
+		.status-card-button:focus-visible {
+			outline: none;
+			box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25), 0 14px 26px rgba(0, 0, 0, 0.4);
+		}
+
 		.games-grid {
 			position: relative;
 			width: 100%;
@@ -742,7 +822,10 @@
 			sourceGames = Array.isArray(games) ? games : [];
 			if (!sourceGames.length) {
 				setDownloadState('disabled');
-				showError('No playtime data is available. If this is your profile, make sure your Steam Game Details privacy is set to Public.');
+				showError({
+					title: 'No playtime data available',
+					body: 'If this is your profile, make sure your Steam Game Details privacy is set to Public.',
+				});
 				return;
 			}
 			placeGames();
@@ -757,19 +840,112 @@
 			resizeFrame = requestAnimationFrame(placeGames);
 		});
 
-		const showError = (message) => {
-			console.error(message);
+		const showError = (input, link) => {
+			const config =
+				typeof input === 'string' ? { body: input } : { ...(input ?? {}) };
+
+			if (link?.href) {
+				const actions = Array.isArray(config.actions) ? [...config.actions] : [];
+				actions.push({
+					label: link.label ?? link.href,
+					href: link.href,
+					external: link.external ?? true,
+				});
+				config.actions = actions;
+				if (link.afterText) {
+					const appended = link.afterText.trim();
+					config.hint = config.hint ? `${config.hint} ${appended}` : appended;
+				}
+			}
+
+			const logMessage =
+				typeof input === 'string'
+					? input
+					: config.body ?? config.title ?? 'Unknown error';
+			console.error(logMessage);
 			statusEl?.classList.add('error');
 			statusEl?.classList.remove('hidden');
-			if (statusEl) {
-				statusEl.classList.add('has-message');
-				statusEl.textContent = message;
+			if (!statusEl) {
+				setDownloadState('disabled');
+				return;
 			}
+
+			statusEl.classList.add('has-message');
+			statusEl.textContent = '';
+
+			const card = document.createElement('div');
+			card.className = 'status-card';
+
+			const titleText =
+				typeof config.title === 'string' ? config.title.trim() : '';
+			if (titleText) {
+				const titleEl = document.createElement('h2');
+				titleEl.className = 'status-card-title';
+				titleEl.textContent = titleText;
+				card.append(titleEl);
+			}
+
+			let bodyText =
+				typeof config.body === 'string' ? config.body.trim() : '';
+			if (!titleText && !bodyText && logMessage) {
+				bodyText = logMessage.trim();
+			}
+			if (bodyText) {
+				const bodyEl = document.createElement('p');
+				bodyEl.className = 'status-card-body';
+				bodyEl.textContent = bodyText;
+				card.append(bodyEl);
+			}
+
+			const hintText =
+				typeof config.hint === 'string' ? config.hint.trim() : '';
+			if (hintText) {
+				const hintEl = document.createElement('p');
+				hintEl.className = 'status-card-hint';
+				hintEl.textContent = hintText;
+				card.append(hintEl);
+			}
+
+			const resolvedActions = Array.isArray(config.actions)
+				? config.actions.filter((action) => {
+					if (!action || typeof action !== 'object') {
+						return false;
+					}
+					const label =
+						typeof action.label === 'string' ? action.label.trim() : '';
+					const href =
+						typeof action.href === 'string' ? action.href.trim() : '';
+					return Boolean(label && href);
+				})
+				: [];
+
+			if (resolvedActions.length) {
+				const actionsEl = document.createElement('div');
+				actionsEl.className = 'status-card-actions';
+				for (const action of resolvedActions) {
+					const actionLink = document.createElement('a');
+					actionLink.className = 'status-card-button';
+					actionLink.href = String(action.href).trim();
+					actionLink.textContent = String(action.label).trim();
+					const isExternal = action.external ?? true;
+					if (isExternal) {
+						actionLink.target = '_blank';
+						actionLink.rel = 'noreferrer';
+					}
+					actionsEl.append(actionLink);
+				}
+				card.append(actionsEl);
+			}
+
+			statusEl.append(card);
 			setDownloadState('disabled');
 		};
 
 		if (!submittedIdentifier) {
-			showError('Add a SteamID or username to the URL (e.g. /76561198000000000 or /obviyus) to view your collage.');
+			showError({
+				title: 'Steam profile required',
+				body: 'Add a SteamID or vanity username to the URL (e.g. /76561198000000000 or /obviyus) to view your collage.',
+			});
 		} else {
 			try {
 				showLoader();
@@ -826,24 +1002,43 @@
 						: null;
 				const errorMessage = error instanceof Error ? error.message : '';
 				const normalizedMessage = errorMessage.toLowerCase();
-				let message =
-					"We couldn't load the playtime data. If this is your profile, make sure your Steam Game Details privacy is set to Public and try again.";
+				let errorConfig = {
+					title: 'Unable to load playtime data',
+					body: "We couldn't load the playtime data.",
+					hint: 'If this is your profile, make sure your Steam Game Details privacy is set to Public and try again.',
+				};
 
 				if (status === 404) {
-					message =
-						"We couldn't find a Steam profile with that identifier. Use the ID from your profile URL (steamcommunity.com/id/... or /profiles/...) or the full SteamID64.";
+					errorConfig = {
+						title: 'Profile not found',
+						body: "We couldn't find a Steam profile with that identifier.",
+						hint: 'Use the ID from your profile URL (steamcommunity.com/id/... or /profiles/...) or the full SteamID64.',
+						actions: [
+							{
+								label: 'Open steamid.io',
+								href: 'https://steamid.io/lookup',
+								external: true,
+							},
+						],
+					};
 				} else if (status === 403 || normalizedMessage.includes('403')) {
-					message =
-						"This Steam profile keeps its game details private. Update privacy settings to Public and try again.";
+					errorConfig = {
+						title: 'Profile is private',
+						body: 'This Steam profile keeps its game details private.',
+						hint: 'Update privacy settings to Public and try again.',
+					};
 				} else if (
 					errorMessage &&
 					!normalizedMessage.includes('failed to load playtime data') &&
 					!normalizedMessage.includes('unable to fetch playtime data')
 				) {
-					message = errorMessage;
+					errorConfig = {
+						title: 'Unable to load playtime data',
+						body: errorMessage,
+					};
 				}
 
-				showError(message);
+				showError(errorConfig);
 			}
 		}
 	</script>

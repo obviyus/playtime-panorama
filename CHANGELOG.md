@@ -1,3 +1,11 @@
+# [1.10.0](https://github.com/obviyus/playtime-panorama/compare/v1.9.0...v1.10.0) (2025-10-27)
+
+
+### Features
+
+* API to backfill missing OS data ([4621f73](https://github.com/obviyus/playtime-panorama/commit/4621f738a621322a0e703d6d27782c69358fa9b1))
+* improved error message page ([ac2e06f](https://github.com/obviyus/playtime-panorama/commit/ac2e06f5986f179617d10ff796219a3ad7476bb3))
+
 # [1.9.0](https://github.com/obviyus/playtime-panorama/compare/v1.8.0...v1.9.0) (2025-10-27)
 
 

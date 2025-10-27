@@ -5,6 +5,10 @@ import {
 	SteamIdentifierError,
 } from "~/server/steam";
 import { getLeaderboardSnapshot } from "~/server/leaderboard";
+import {
+	formatOsPlaytimeBackfillStatus,
+	startOsPlaytimeBackfill,
+} from "~/server/backfill/os-playtime";
 import leaderboardBundle from "~/templates/leaderboard.html";
 import profileBundle from "~/templates/profile.html";
 import rootBundle from "~/templates/root.html";
@@ -100,6 +104,58 @@ const server = Bun.serve({
 						{ status: 500 },
 					);
 				}
+			},
+		},
+		"/api/backfill/os-playtime": {
+			GET: async (req) => {
+				const adminKey = Bun.env.ADMIN_KEY;
+				const url = new URL(req.url);
+				const providedAdminKey = url.searchParams.get("ADMIN_KEY") ?? "";
+
+				if (!adminKey || providedAdminKey !== adminKey) {
+					return new Response("Forbidden\n", {
+						status: 403,
+						headers: {
+							"Content-Type": "text/plain; charset=utf-8",
+						},
+					});
+				}
+
+				const apiKeyParam = url.searchParams.get("STEAM_API_KEY");
+				const shouldStart = apiKeyParam !== null;
+				const apiKeyOverride = apiKeyParam?.trim()
+					? apiKeyParam.trim()
+					: undefined;
+
+				let statusCode = 200;
+				let prefix = "";
+
+				if (shouldStart) {
+					if (!apiKeyOverride && !Bun.env.STEAM_API_KEY) {
+						prefix = "A STEAM_API_KEY must be provided to start the backfill.\n";
+						statusCode = 400;
+					} else {
+						const startResult = startOsPlaytimeBackfill({
+							apiKeyOverride,
+						});
+
+						if (startResult.started) {
+							prefix = "Backfill job started.\n";
+							statusCode = 202;
+						} else {
+							prefix = `${startResult.reason ?? "A backfill job is already running."}\n`;
+							statusCode = 409;
+						}
+					}
+				}
+
+				const body = `${prefix}${formatOsPlaytimeBackfillStatus()}`;
+				return new Response(body, {
+					status: statusCode,
+					headers: {
+						"Content-Type": "text/plain; charset=utf-8",
+					},
+				});
 			},
 		},
 		"/": rootBundle,

@@ -125,10 +125,15 @@ export async function getVanityResolution(rawIdentifier: string) {
 	);
 }
 
+interface FetchPlaytimeOptions {
+	apiKeyOverride?: string;
+}
+
 async function fetchPlaytimeFromSteam(
 	steamID: string,
+	options?: FetchPlaytimeOptions,
 ): Promise<CachedPlaytimePayload> {
-	const apiKey = Bun.env.STEAM_API_KEY;
+	const apiKey = options?.apiKeyOverride ?? Bun.env.STEAM_API_KEY;
 
 	if (!apiKey) {
 		throw new Error("STEAM_API_KEY is not configured");
@@ -169,6 +174,7 @@ async function fetchPlaytimeFromSteam(
 
 interface GetPlaytimePayloadOptions {
 	forceRefresh?: boolean;
+	apiKeyOverride?: string;
 }
 
 export async function getPlaytimePayload(
@@ -190,5 +196,7 @@ export async function getPlaytimePayload(
 		console.log(`Refreshing playtime payload for SteamID ${steamID}...`);
 	}
 
-	return fetchPlaytimeFromSteam(steamID);
+	return fetchPlaytimeFromSteam(steamID, {
+		apiKeyOverride: options?.apiKeyOverride,
+	});
 }

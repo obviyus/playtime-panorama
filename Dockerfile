@@ -8,7 +8,6 @@ RUN bun install --frozen-lockfile
 COPY tsconfig.json ./
 COPY server ./server
 COPY templates ./templates
-COPY scripts ./scripts
 
 RUN bun run build
 
@@ -20,7 +19,6 @@ ENV NODE_ENV=production
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/templates ./templates
-COPY --from=builder /app/scripts ./scripts
 
 EXPOSE 3000
 

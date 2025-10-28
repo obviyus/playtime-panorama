@@ -22,6 +22,7 @@ if (!Bun.env.STEAM_API_KEY) {
 
 type PlaytimePayloadLoader = (
 	steamID: string,
+	apiKeyOverride?: string,
 ) => Promise<{
 	game_count: number;
 	games: unknown[];
@@ -30,6 +31,7 @@ type PlaytimePayloadLoader = (
 async function createPlaytimeResponse(
 	identifier: string,
 	loadPayload: PlaytimePayloadLoader,
+	apiKeyOverride?: string,
 ) {
 	const trimmed = identifier.trim();
 
@@ -43,7 +45,7 @@ async function createPlaytimeResponse(
 	let resolvedSteamID: string;
 
 	try {
-		resolvedSteamID = await getVanityResolution(trimmed);
+		resolvedSteamID = await getVanityResolution(trimmed, { apiKeyOverride });
 	} catch (error) {
 		if (error instanceof SteamIdentifierError) {
 			console.warn(
@@ -63,7 +65,7 @@ async function createPlaytimeResponse(
 	}
 
 	try {
-		const payload = await loadPayload(resolvedSteamID);
+		const payload = await loadPayload(resolvedSteamID, apiKeyOverride);
 		return Response.json(
 			{
 				...payload,
@@ -89,6 +91,7 @@ async function createPlaytimeResponse(
 async function createManualRefreshResponse(
 	identifier: string,
 	loadPayload: PlaytimePayloadLoader,
+	apiKeyOverride?: string,
 ) {
 	const trimmed = identifier.trim();
 
@@ -102,7 +105,7 @@ async function createManualRefreshResponse(
 	let resolvedSteamID: string;
 
 	try {
-		resolvedSteamID = await getVanityResolution(trimmed);
+		resolvedSteamID = await getVanityResolution(trimmed, { apiKeyOverride });
 	} catch (error) {
 		if (error instanceof SteamIdentifierError) {
 			console.warn(
@@ -150,7 +153,7 @@ async function createManualRefreshResponse(
 	}
 
 	try {
-		const payload = await loadPayload(resolvedSteamID);
+		const payload = await loadPayload(resolvedSteamID, apiKeyOverride);
 		return Response.json(
 			{
 				...payload,
@@ -185,17 +188,25 @@ const server = Bun.serve({
 	routes: {
 		"/api/playtime/:identifier": {
 			GET: async (req) => {
-				return createPlaytimeResponse(req.params.identifier ?? "", (steamID) =>
-					getPlaytimePayload(steamID),
+				const url = new URL(req.url);
+				const apiKey = url.searchParams.get("apiKey") || undefined;
+				return createPlaytimeResponse(
+					req.params.identifier ?? "",
+					(steamID, apiKeyOverride) =>
+						getPlaytimePayload(steamID, { apiKeyOverride }),
+					apiKey,
 				);
 			},
 		},
 		"/api/playtime/:identifier/refresh": {
 			POST: async (req) => {
+				const url = new URL(req.url);
+				const apiKey = url.searchParams.get("apiKey") || undefined;
 				return createManualRefreshResponse(
 					req.params.identifier ?? "",
-					(steamID) =>
-						getPlaytimePayload(steamID, { forceRefresh: true }),
+					(steamID, apiKeyOverride) =>
+						getPlaytimePayload(steamID, { forceRefresh: true, apiKeyOverride }),
+					apiKey,
 				);
 			},
 		},

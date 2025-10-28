@@ -404,6 +404,10 @@
 			: null;
 		let displayIdentifier = submittedIdentifier;
 
+		// Extract API key from URL query parameters
+		const urlParams = new URLSearchParams(window.location.search);
+		const userApiKey = urlParams.get('apiKey') || '';
+
 		const PAGE_TITLE_BASE = "Playtime Panorama";
 		const updateDocumentTitle = (identifier) => {
 			const next = typeof identifier === "string" ? identifier.trim() : "";
@@ -864,15 +868,20 @@
 				throw new Error('Missing Steam identifier for refresh.');
 			}
 
-			const response = await fetch(
+			const refreshUrl = new URL(
 				`${API_ENDPOINT_BASE}${encodeURIComponent(lookupIdentifier)}${REFRESH_ENDPOINT_SUFFIX}`,
-				{
-					method: 'POST',
-					headers: {
-						Accept: 'application/json',
-					},
-				},
+				window.location.origin
 			);
+			if (userApiKey) {
+				refreshUrl.searchParams.set('apiKey', userApiKey);
+			}
+
+			const response = await fetch(refreshUrl.toString(), {
+				method: 'POST',
+				headers: {
+					Accept: 'application/json',
+				},
+			});
 
 			if (response.status === 429) {
 				const retryPayload = await response.json().catch(() => ({}));
@@ -1526,7 +1535,11 @@
 			try {
 				showLoader();
 				const lookupIdentifier = submittedIdentifier;
-				const response = await fetch(`${API_ENDPOINT_BASE}${encodeURIComponent(lookupIdentifier)}`, {
+				const apiUrl = new URL(`${API_ENDPOINT_BASE}${encodeURIComponent(lookupIdentifier)}`, window.location.origin);
+				if (userApiKey) {
+					apiUrl.searchParams.set('apiKey', userApiKey);
+				}
+				const response = await fetch(apiUrl.toString(), {
 					headers: {
 						Accept: 'application/json',
 					},

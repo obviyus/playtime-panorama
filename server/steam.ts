@@ -120,7 +120,14 @@ export class SteamIdentifierError extends Error {
 	}
 }
 
-export async function getVanityResolution(rawIdentifier: string) {
+interface GetVanityResolutionOptions {
+	apiKeyOverride?: string;
+}
+
+export async function getVanityResolution(
+	rawIdentifier: string,
+	options?: GetVanityResolutionOptions,
+) {
 	const identifier = rawIdentifier.trim();
 
 	if (!identifier) {
@@ -139,7 +146,7 @@ export async function getVanityResolution(rawIdentifier: string) {
 	console.log(`No cached vanity resolution for "${identifier}", fetching...`);
 	let apiKey: string;
 	try {
-		apiKey = resolveSteamApiKey();
+		apiKey = resolveSteamApiKey(options?.apiKeyOverride);
 	} catch (error) {
 		const message =
 			error instanceof Error

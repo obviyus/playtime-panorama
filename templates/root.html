@@ -196,6 +196,11 @@
 				<small>Examples: obviyus, 76561198814583839.</small>
 			</label>
 			<input id="steam-id" name="steam-id" placeholder="obviyus" required autocomplete="off" />
+			<label for="steam-api-key">
+				Steam API Key (optional)
+				<small>If provided, your personal API key will be used instead of the server's key.</small>
+			</label>
+			<input id="steam-api-key" name="steam-api-key" type="password" placeholder="Enter your Steam API key (optional)" autocomplete="off" />
 			<div class="form-actions">
 				<button type="submit" class="cta-button">
 					<span class="cta-button__label">View playtime collage</span>
@@ -243,10 +248,14 @@
 			event.preventDefault();
 			const formData = new FormData(form);
 			const targetId = normalizeSteamIdentifier(formData.get('steam-id'));
+			const apiKey = formData.get('steam-api-key');
 
 			if (targetId) {
-				const url = '/' + encodeURIComponent(targetId);
-				window.location.assign(url);
+				const url = new URL('/' + encodeURIComponent(targetId), window.location.origin);
+				if (apiKey && typeof apiKey === 'string' && apiKey.trim()) {
+					url.searchParams.set('apiKey', apiKey.trim());
+				}
+				window.location.assign(url.toString());
 			}
 		});
 	</script>

@@ -1530,6 +1530,13 @@
 			showError({
 				title: 'Steam profile required',
 				body: 'Add a SteamID or vanity username to the URL (e.g. /76561198000000000 or /obviyus) to view your collage.',
+				actions: [
+					{
+						label: 'Go to Home',
+						href: '/',
+						external: false,
+					},
+				],
 			});
 		} else {
 			try {
@@ -1572,6 +1579,13 @@
 					title: 'Unable to load playtime data',
 					body: "We couldn't load the playtime data.",
 					hint: 'If this is your profile, make sure your Steam Game Details privacy is set to Public and try again.',
+					actions: [
+						{
+							label: 'Go to Home',
+							href: '/',
+							external: false,
+						},
+					],
 				};
 
 				if (status === 404) {
@@ -1581,6 +1595,11 @@
 						hint: 'Use the ID from your profile URL (steamcommunity.com/id/... or /profiles/...) or the full steamID64.',
 						disableRefresh: true,
 						actions: [
+							{
+								label: 'Go to Home',
+								href: '/',
+								external: false,
+							},
 							{
 								label: 'Open steamid.io',
 								href: 'https://steamid.io/lookup',
@@ -1593,6 +1612,13 @@
 						title: 'Profile is private',
 						body: 'This Steam profile keeps its game details private.',
 						hint: 'Update privacy settings to Public and try again.',
+						actions: [
+							{
+								label: 'Go to Home',
+								href: '/',
+								external: false,
+							},
+						],
 					};
 				} else if (
 					errorMessage &&
@@ -1602,6 +1628,13 @@
 					errorConfig = {
 						title: 'Unable to load playtime data',
 						body: errorMessage,
+						actions: [
+							{
+								label: 'Go to Home',
+								href: '/',
+								external: false,
+							},
+						],
 					};
 				}
 

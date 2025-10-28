@@ -156,6 +156,16 @@
 			color: #8a8a8a;
 		}
 
+		small a {
+			color: #ffffff;
+			text-decoration: underline;
+			transition: color 150ms ease;
+		}
+
+		small a:hover {
+			color: #dddddd;
+		}
+
 		footer {
 			font-size: 0.875rem;
 			color: #888888;
@@ -198,7 +208,11 @@
 			<input id="steam-id" name="steam-id" placeholder="obviyus" required autocomplete="off" />
 			<label for="steam-api-key">
 				Steam API Key (optional)
-				<small>If provided, your personal API key will be used instead of the server's key.</small>
+				<small>
+					If the profile generation fails, it's probably because my own API Key have reached the usage limit.
+					If provided, your personal API key will be used instead of the default server's key.
+					<a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noreferrer">Get your API key here</a>.
+				</small>
 			</label>
 			<input id="steam-api-key" name="steam-api-key" type="password" placeholder="Enter your Steam API key (optional)" autocomplete="off" />
 			<div class="form-actions">
@@ -212,8 +226,9 @@
 			<ol>
 				<li>Visit your Steam profile in a browser and choose <strong>Edit Profile</strong>.</li>
 				<li>Open <strong>My privacy settings</strong>.</li>
-				<li>Set <strong>Game details</strong> to <strong>Public</strong> and uncheck “Always keep my total
-					playtime private even if users can see my game details.”</li>
+				<li>Set <strong>Game details</strong> to <strong>Public</strong> and uncheck "Always keep my total
+					playtime private even if users can see my game details."</li>
+				<li>API keys are not stored on the server. Results are cached for 24 hours to improve performance and reduce API usage.</li>
 			</ol>
 		</div>
 	</main>

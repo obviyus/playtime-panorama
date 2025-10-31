@@ -14,10 +14,26 @@ Generate a dense, responsive collage of your Steam library where each header ima
 
 Grab a Steam API key from https://steamcommunity.com/dev/apikey.
 
+### Installation
 ```bash
 bun install
+```
+
+### Running the app
+
+#### macOS/Linux (Terminal)
+```bash
 STEAM_API_KEY=ABCDEFGH... bun run dev
 ```
+
+#### Windows (PowerShell)
+For local development on Windows, you may need to disable SSL certificate verification temporarily to resolve Steam API connection issues:
+```powershell
+$env:NODE_TLS_REJECT_UNAUTHORIZED=0; $env:STEAM_API_KEY="ABCDEFGH...";
+bun run dev
+```
+
+> Note: `NODE_TLS_REJECT_UNAUTHORIZED=0` is a temporary workaround for local development only. It disables SSL certificate verification and should not be used in production environments.
 
 Visit `http://localhost:3000/<your-steam-id>` and the server will fetch, normalize, and render the responsive grid layout on the fly.
 
@@ -37,7 +53,7 @@ Apart from a few type packages, this app uses no external dependencies. Everythi
 ## Limitations & quirks
 - Games with less than 10 minutes of lifetime playtime are skipped.
 - Family sharing libraries are not exposed by Steam's API in `GetOwnedGames`.
-- Dota 2 has an unusual licens. It _seems_ to only appears in the API response when the game is currently installed but I couldn't verify it thoroughly.
+- Dota 2 has an unusual license. It _seems_ to only appear in the API response when the game is currently installed but I couldn't verify it thoroughly.
 
 ## Why I built this
 I was reading the patch notes for [Bun 1.3](https://bun.com/blog/bun-v1.3) (♥) where they talk about Bun being a "Full‑stack JavaScript runtime". I really wanted to see how far I can get with only Bun's in-built APIs.

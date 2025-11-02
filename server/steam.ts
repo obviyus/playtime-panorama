@@ -55,8 +55,8 @@ const steamApiKeyList: string[] = (() => {
 	return [];
 })();
 
-const STEAM_RATE_LIMIT_PER_KEY = 200;
-const STEAM_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const STEAM_RATE_LIMIT_PER_KEY = 300;
+const STEAM_RATE_LIMIT_WINDOW_MS = 6 * 60 * 1000;
 const steamApiKeyPoolSize = Math.max(1, steamApiKeyList.length);
 
 const steamRequestLimiter = new Bottleneck({

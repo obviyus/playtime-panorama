@@ -43,6 +43,7 @@ const steamApiKeyList: string[] = (() => {
 			.map((key) => key.trim())
 			.filter(Boolean);
 		if (keys.length > 0) {
+			console.log(`Using ${keys.length} Steam API keys from STEAM_API_KEYS`);
 			return keys;
 		}
 	}

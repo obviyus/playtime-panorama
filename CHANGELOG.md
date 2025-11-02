@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/obviyus/playtime-panorama/compare/v1.17.0...v1.18.0) (2025-11-02)
+
+
+### Features
+
+* log Steam key count ([9e1ff5f](https://github.com/obviyus/playtime-panorama/commit/9e1ff5f5670cebd28560cffaae4dd8c85e050066))
+
 # [1.17.0](https://github.com/obviyus/playtime-panorama/compare/v1.16.0...v1.17.0) (2025-11-02)
 
 

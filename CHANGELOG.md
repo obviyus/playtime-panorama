@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/obviyus/playtime-panorama/compare/v1.16.0...v1.17.0) (2025-11-02)
+
+
+### Features
+
+* tighten rate limit ([b2414ae](https://github.com/obviyus/playtime-panorama/commit/b2414ae1f56c3b6c41b9c38553077d7af9f447db))
+
 # [1.16.0](https://github.com/obviyus/playtime-panorama/compare/v1.15.0...v1.16.0) (2025-10-27)
 
 

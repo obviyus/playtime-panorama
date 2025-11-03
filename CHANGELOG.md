@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/obviyus/playtime-panorama/compare/v1.19.0...v1.20.0) (2025-11-03)
+
+
+### Features
+
+* improved text about Steam API limits ([1129746](https://github.com/obviyus/playtime-panorama/commit/112974601845f1dca670cec350891f47d83c9009))
+
 # [1.19.0](https://github.com/obviyus/playtime-panorama/compare/v1.18.0...v1.19.0) (2025-11-03)
 
 

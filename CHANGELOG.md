@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/obviyus/playtime-panorama/compare/v1.18.0...v1.19.0) (2025-11-03)
+
+
+### Features
+
+* add support for user-provided Steam API key and enhance documentation ([b62535d](https://github.com/obviyus/playtime-panorama/commit/b62535df7c1321b1de79b292ab20681ceb05cd2e))
+
 # [1.18.0](https://github.com/obviyus/playtime-panorama/compare/v1.17.0...v1.18.0) (2025-11-02)
 
 

@@ -424,6 +424,26 @@
 		const refreshLabel = refreshButton?.querySelector('.button-label');
 		const API_ENDPOINT_BASE = '/api/playtime/';
 		const REFRESH_ENDPOINT_SUFFIX = '/refresh';
+
+		// Get stored API key from localStorage
+		const getUserApiKey = () => {
+			try {
+				return localStorage.getItem('steam_api_key') || '';
+			} catch {
+				return '';
+			}
+		};
+
+		// Helper to build URL with API key parameter
+		const buildApiUrl = (path) => {
+			const apiKey = getUserApiKey();
+			if (apiKey) {
+				const separator = path.includes('?') ? '&' : '?';
+				return `${path}${separator}api_key=${encodeURIComponent(apiKey)}`;
+			}
+			return path;
+		};
+
 		const DOWNLOAD_LABEL_DEFAULT = 'Download mosaic';
 		const DOWNLOAD_LABEL_BUSY = 'Preparing...';
 		const DOWNLOAD_LABEL_ERROR = 'Download failed — retry';
@@ -864,15 +884,16 @@
 				throw new Error('Missing Steam identifier for refresh.');
 			}
 
-			const response = await fetch(
-				`${API_ENDPOINT_BASE}${encodeURIComponent(lookupIdentifier)}${REFRESH_ENDPOINT_SUFFIX}`,
-				{
-					method: 'POST',
-					headers: {
-						Accept: 'application/json',
-					},
-				},
+			const url = buildApiUrl(
+				`${API_ENDPOINT_BASE}${encodeURIComponent(lookupIdentifier)}${REFRESH_ENDPOINT_SUFFIX}`
 			);
+
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					Accept: 'application/json',
+				},
+			});
 
 			if (response.status === 429) {
 				const retryPayload = await response.json().catch(() => ({}));
@@ -1526,7 +1547,9 @@
 			try {
 				showLoader();
 				const lookupIdentifier = submittedIdentifier;
-				const response = await fetch(`${API_ENDPOINT_BASE}${encodeURIComponent(lookupIdentifier)}`, {
+				const url = buildApiUrl(`${API_ENDPOINT_BASE}${encodeURIComponent(lookupIdentifier)}`);
+
+				const response = await fetch(url, {
 					headers: {
 						Accept: 'application/json',
 					},

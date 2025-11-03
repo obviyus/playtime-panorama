@@ -1225,6 +1225,8 @@
 				showError({
 					title: 'No playtime data available',
 					body: 'We could not find any games with recorded playtime.',
+					hint: API_LIMIT_HINT,
+					actions: [createApiKeyHelpAction()],
 				});
 				return;
 			}
@@ -1306,6 +1308,8 @@
 				showError({
 					title: 'No playtime data available',
 					body: 'If this is your profile, make sure your Steam Game Details privacy is set to Public.',
+					hint: API_LIMIT_HINT,
+					actions: [createApiKeyHelpAction()],
 				});
 				return;
 			}
@@ -1378,6 +1382,13 @@
 
 			return actionButton;
 		};
+
+		const API_LIMIT_HINT = 'This error could be due to Steam API limits. Try providing your own key on the home page.';
+		const createApiKeyHelpAction = () => ({
+			label: 'Use your own Steam API key',
+			href: '/',
+			external: false,
+		});
 
 		const showError = (input, link) => {
 			const config =
@@ -1542,6 +1553,8 @@
 			showError({
 				title: 'Steam profile required',
 				body: 'Add a SteamID or vanity username to the URL (e.g. /76561198000000000 or /obviyus) to view your collage.',
+				hint: API_LIMIT_HINT,
+				actions: [createApiKeyHelpAction()],
 			});
 		} else {
 			try {
@@ -1581,7 +1594,8 @@
 				let errorConfig = {
 					title: 'Unable to load playtime data',
 					body: "We couldn't load the playtime data.",
-					hint: 'If this is your profile, make sure your Steam Game Details privacy is set to Public and try again.',
+					hint: "If this is your profile, make sure your Steam Game Details privacy is set to Public and try again. " + API_LIMIT_HINT,
+					actions: [createApiKeyHelpAction()],
 				};
 
 				if (status === 404) {
@@ -1602,7 +1616,8 @@
 					errorConfig = {
 						title: 'Profile is private',
 						body: 'This Steam profile keeps its game details private.',
-						hint: 'Update privacy settings to Public and try again.',
+						hint: 'Update privacy settings to Public and try again. ' + API_LIMIT_HINT,
+						actions: [createApiKeyHelpAction()],
 					};
 				} else if (
 					errorMessage &&
@@ -1612,6 +1627,8 @@
 					errorConfig = {
 						title: 'Unable to load playtime data',
 						body: errorMessage,
+						hint: API_LIMIT_HINT,
+						actions: [createApiKeyHelpAction()],
 					};
 				}
 

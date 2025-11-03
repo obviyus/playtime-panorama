@@ -128,10 +128,6 @@
 			white-space: nowrap;
 		}
 
-		.refresh-button[data-state="cooldown"] {
-			opacity: 0.75;
-		}
-
 		.games-stage {
 			position: relative;
 			width: 100%;
@@ -347,19 +343,6 @@
 			<section class="games-grid" id="games"></section>
 		</div>
 		<div class="download-actions">
-			<button type="button" id="refresh-button" class="download-button refresh-button" disabled>
-				<span class="button-icon" aria-hidden="true">
-					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-						stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-						class="lucide lucide-refresh-cw-icon lucide-refresh-cw">
-						<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-						<path d="M21 3v5h-5" />
-						<path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-						<path d="M8 16H3v5" />
-					</svg>
-				</span>
-				<span class="button-label">Refresh data</span>
-			</button>
 			<button type="button" id="download-button" class="download-button" disabled>
 				<span class="button-icon" aria-hidden="true">
 					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -419,11 +402,8 @@
 		const stageEl = document.getElementById('games-stage');
 		const gamesContainer = document.getElementById('games');
 		const downloadButton = document.getElementById('download-button');
-		const refreshButton = document.getElementById('refresh-button');
 		const downloadLabel = downloadButton?.querySelector('.button-label');
-		const refreshLabel = refreshButton?.querySelector('.button-label');
 		const API_ENDPOINT_BASE = '/api/playtime/';
-		const REFRESH_ENDPOINT_SUFFIX = '/refresh';
 
 		// Get stored API key from localStorage
 		const getUserApiKey = () => {
@@ -447,20 +427,11 @@
 		const DOWNLOAD_LABEL_DEFAULT = 'Download mosaic';
 		const DOWNLOAD_LABEL_BUSY = 'Preparing...';
 		const DOWNLOAD_LABEL_ERROR = 'Download failed — retry';
-		const REFRESH_LABEL_DEFAULT = 'Refresh data';
-		const REFRESH_LABEL_BUSY = 'Refreshing...';
-		const REFRESH_LABEL_ERROR = 'Refresh failed — retry';
-		const REFRESH_FALLBACK_COOLDOWN_SECONDS = 60 * 60;
 		const HEADER_ASPECT = 460 / 215;
 		let sourceGames = [];
 		let resizeFrame = 0;
 		let downloadInProgress = false;
-		let refreshInProgress = false;
-		let refreshCooldownTimer = 0;
-		let refreshCooldownEndsAt = 0;
-		let refreshIdentifier = submittedIdentifier;
 		const imageBitmapCache = new WeakMap();
-		const statusRefreshButtons = new Set();
 		const setButtonLabel = (labelEl, buttonEl, text) => {
 			const next =
 				typeof text === 'string'
@@ -513,208 +484,6 @@
 
 		setDownloadState('disabled');
 
-		const updateStatusRefreshButtons = (state, meta = {}) => {
-			if (!statusRefreshButtons.size) {
-				return;
-			}
-
-			const identifierAvailable = Boolean(getRefreshLookupIdentifier());
-
-			for (const entry of statusRefreshButtons) {
-				const button = entry?.button;
-				const label = entry?.label;
-				if (!button || !document.contains(button)) {
-					statusRefreshButtons.delete(entry);
-					continue;
-				}
-
-				const applyLabel = (text) => {
-					setButtonLabel(label, button, text);
-				};
-
-				const applyDisabled = () => {
-					button.disabled = true;
-					button.dataset.state = 'disabled';
-					button.removeAttribute('title');
-					applyLabel(REFRESH_LABEL_DEFAULT);
-				};
-
-				if (!identifierAvailable) {
-					applyDisabled();
-					continue;
-				}
-
-				switch (state) {
-					case 'busy': {
-						button.disabled = true;
-						button.dataset.state = 'busy';
-						button.removeAttribute('title');
-						applyLabel(REFRESH_LABEL_BUSY);
-						break;
-					}
-					case 'error': {
-						button.disabled = false;
-						button.dataset.state = 'error';
-						button.removeAttribute('title');
-						applyLabel(REFRESH_LABEL_ERROR);
-						break;
-					}
-					case 'cooldown': {
-						const seconds =
-							typeof meta.retryAfterSeconds === 'number' && Number.isFinite(meta.retryAfterSeconds)
-								? Math.max(1, meta.retryAfterSeconds)
-								: getRemainingRefreshCooldownSeconds() || REFRESH_FALLBACK_COOLDOWN_SECONDS;
-						button.disabled = true;
-						button.dataset.state = 'cooldown';
-						button.title = 'Manual refresh is limited to once per hour.';
-						applyLabel(formatRefreshCooldownLabel(seconds));
-						break;
-					}
-					case 'ready': {
-						button.disabled = false;
-						button.dataset.state = 'ready';
-						button.removeAttribute('title');
-						applyLabel(REFRESH_LABEL_DEFAULT);
-						break;
-					}
-					case 'disabled':
-					default: {
-						applyDisabled();
-					}
-				}
-			}
-		};
-
-		const clearRefreshCooldownTimer = () => {
-			if (refreshCooldownTimer) {
-				clearTimeout(refreshCooldownTimer);
-				refreshCooldownTimer = 0;
-			}
-		};
-
-		const isRefreshCoolingDown = () => refreshCooldownEndsAt > Date.now();
-
-		const getRemainingRefreshCooldownSeconds = () => {
-			if (!isRefreshCoolingDown()) {
-				return 0;
-			}
-			const remainingMs = Math.max(0, refreshCooldownEndsAt - Date.now());
-			return Math.max(1, Math.ceil(remainingMs / 1000));
-		};
-
-		const formatRefreshCooldownLabel = (seconds) => {
-			if (!Number.isFinite(seconds) || seconds <= 0) {
-				return 'Refresh soon';
-			}
-			if (seconds >= 3600) {
-				const hours = Math.max(1, Math.round(seconds / 3600));
-				return hours > 1 ? `Try again in ${hours}h` : 'Try again in 1h';
-			}
-			if (seconds >= 120) {
-				const minutes = Math.ceil(seconds / 60);
-				return `Try again in ${minutes}m`;
-			}
-			if (seconds >= 60) {
-				return 'Try again in 1m';
-			}
-			return `Try again in ${Math.max(1, Math.ceil(seconds))}s`;
-		};
-
-		const setRefreshState = (state, meta = {}) => {
-			if (!refreshButton) {
-				return;
-			}
-
-			switch (state) {
-				case 'ready': {
-					clearRefreshCooldownTimer();
-					refreshCooldownEndsAt = 0;
-					refreshButton.disabled = false;
-					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_DEFAULT);
-					refreshButton.dataset.state = 'ready';
-					refreshButton.removeAttribute('title');
-					updateStatusRefreshButtons('ready');
-					break;
-				}
-				case 'busy': {
-					refreshButton.disabled = true;
-					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_BUSY);
-					refreshButton.dataset.state = 'busy';
-					refreshButton.removeAttribute('title');
-					updateStatusRefreshButtons('busy');
-					break;
-				}
-				case 'error': {
-					clearRefreshCooldownTimer();
-					refreshCooldownEndsAt = 0;
-					refreshButton.disabled = false;
-					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_ERROR);
-					refreshButton.dataset.state = 'error';
-					refreshButton.removeAttribute('title');
-					updateStatusRefreshButtons('error');
-					break;
-				}
-				case 'cooldown': {
-					const seconds =
-						typeof meta.retryAfterSeconds === 'number' && Number.isFinite(meta.retryAfterSeconds)
-							? Math.max(1, meta.retryAfterSeconds)
-							: REFRESH_FALLBACK_COOLDOWN_SECONDS;
-					const label = formatRefreshCooldownLabel(seconds);
-					refreshButton.disabled = true;
-					setButtonLabel(refreshLabel, refreshButton, label);
-					refreshButton.dataset.state = 'cooldown';
-					refreshButton.title = 'Manual refresh is limited to once per hour.';
-					clearRefreshCooldownTimer();
-					refreshCooldownEndsAt = Date.now() + seconds * 1000;
-					refreshCooldownTimer = window.setTimeout(() => {
-						refreshCooldownTimer = 0;
-						refreshCooldownEndsAt = 0;
-						if (sourceGames.length) {
-							setRefreshState('ready');
-						} else {
-							setRefreshState('disabled');
-						}
-					}, seconds * 1000);
-					updateStatusRefreshButtons('cooldown', { retryAfterSeconds: seconds });
-					break;
-				}
-				default: {
-					clearRefreshCooldownTimer();
-					refreshCooldownEndsAt = 0;
-					refreshButton.disabled = true;
-					setButtonLabel(refreshLabel, refreshButton, REFRESH_LABEL_DEFAULT);
-					refreshButton.dataset.state = 'disabled';
-					refreshButton.removeAttribute('title');
-					updateStatusRefreshButtons('disabled');
-				}
-			}
-		};
-
-		const applyRefreshCooldown = (seconds) => {
-			setRefreshState('cooldown', { retryAfterSeconds: seconds });
-		};
-
-		const getRefreshLookupIdentifier = () => {
-			const candidate =
-				typeof resolvedSteamId64 === 'string' && resolvedSteamId64.trim().length
-					? resolvedSteamId64
-					: refreshIdentifier;
-			if (candidate && typeof candidate === 'string') {
-				const trimmed = candidate.trim();
-				if (trimmed.length) {
-					return trimmed;
-				}
-			}
-			if (typeof submittedIdentifier === 'string') {
-				const trimmed = submittedIdentifier.trim();
-				if (trimmed.length) {
-					return trimmed;
-				}
-			}
-			return '';
-		};
-
-		setRefreshState('disabled');
 
 		const waitForImageLoad = (img) => {
 			if (!img) {
@@ -878,139 +647,6 @@
 			}, 4000);
 		};
 
-		const requestManualRefresh = async () => {
-			const lookupIdentifier = getRefreshLookupIdentifier();
-			if (!lookupIdentifier) {
-				throw new Error('Missing Steam identifier for refresh.');
-			}
-
-			const url = buildApiUrl(
-				`${API_ENDPOINT_BASE}${encodeURIComponent(lookupIdentifier)}${REFRESH_ENDPOINT_SUFFIX}`
-			);
-
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: {
-					Accept: 'application/json',
-				},
-			});
-
-			if (response.status === 429) {
-				const retryPayload = await response.json().catch(() => ({}));
-				const retryHeader = Number.parseInt(
-					response.headers.get('Retry-After') ?? '',
-					10,
-				);
-				const retryAfterSeconds =
-					typeof retryPayload?.retryAfterSeconds === 'number' &&
-						Number.isFinite(retryPayload.retryAfterSeconds)
-						? retryPayload.retryAfterSeconds
-						: Number.isFinite(retryHeader) && retryHeader > 0
-							? retryHeader
-							: REFRESH_FALLBACK_COOLDOWN_SECONDS;
-				applyRefreshCooldown(retryAfterSeconds);
-				const error = new Error(
-					typeof retryPayload?.error === 'string'
-						? retryPayload.error
-						: 'Manual refresh is limited to once per hour.',
-				);
-				error.code = 'cooldown';
-				throw error;
-			}
-
-			if (!response.ok) {
-				const errorBody = await response.json().catch(() => ({}));
-				const message =
-					typeof errorBody?.error === 'string'
-						? errorBody.error
-						: 'Unable to refresh playtime data right now.';
-				const error = new Error(message);
-				error.status = response.status;
-				throw error;
-			}
-
-			const payload = await response.json();
-			const cooldownSeconds =
-				typeof payload?.cooldownSeconds === 'number' &&
-					Number.isFinite(payload.cooldownSeconds)
-					? payload.cooldownSeconds
-					: REFRESH_FALLBACK_COOLDOWN_SECONDS;
-
-			applyRefreshCooldown(cooldownSeconds);
-			applyPlaytimePayload(payload);
-
-			return payload;
-		};
-
-		const executeManualRefresh = async (hooks = {}) => {
-			if (refreshInProgress || isRefreshCoolingDown()) {
-				return false;
-			}
-
-			const identifier = getRefreshLookupIdentifier();
-			if (!identifier) {
-				return false;
-			}
-
-			refreshInProgress = true;
-			setRefreshState('busy');
-			if (typeof hooks.onStart === 'function') {
-				try {
-					hooks.onStart();
-				} catch {
-					// ignore hook errors
-				}
-			}
-
-			try {
-				await requestManualRefresh();
-				if (typeof hooks.onSuccess === 'function') {
-					try {
-						hooks.onSuccess();
-					} catch {
-						// ignore hook errors
-					}
-				}
-				return true;
-			} catch (error) {
-				if (error && typeof error === 'object' && error.code === 'cooldown') {
-					// Cooldown already enforced, nothing else to do.
-				} else {
-					console.error(error);
-					setRefreshState('error');
-				}
-				if (typeof hooks.onError === 'function') {
-					try {
-						hooks.onError(error);
-					} catch {
-						// ignore hook errors
-					}
-				}
-				return false;
-			} finally {
-				refreshInProgress = false;
-				if (!isRefreshCoolingDown()) {
-					if (sourceGames.length) {
-						setRefreshState('ready');
-					} else {
-						setRefreshState('disabled');
-					}
-				}
-				if (typeof hooks.onComplete === 'function') {
-					try {
-						hooks.onComplete();
-					} catch {
-						// ignore hook errors
-					}
-				}
-			}
-		};
-
-		const handleRefreshClick = (event) => {
-			event?.preventDefault();
-			void executeManualRefresh();
-		};
-
 		const handleDownloadClick = async (event) => {
 			event?.preventDefault();
 			if (downloadInProgress) {
@@ -1040,12 +676,6 @@
 		if (downloadButton) {
 			downloadButton.addEventListener('click', (event) => {
 				void handleDownloadClick(event);
-			});
-		}
-
-		if (refreshButton) {
-			refreshButton.addEventListener('click', (event) => {
-				void handleRefreshClick(event);
 			});
 		}
 
@@ -1221,7 +851,6 @@
 
 			if (!playable.length) {
 				gamesContainer.replaceChildren();
-				setRefreshState('disabled');
 				showError({
 					title: 'No playtime data available',
 					body: 'We could not find any games with recorded playtime.',
@@ -1244,7 +873,6 @@
 				statusEl?.classList.add('error');
 				statusEl?.classList.remove('hidden');
 				setDownloadState('disabled');
-				setRefreshState('disabled');
 				return;
 			}
 
@@ -1297,14 +925,12 @@
 				statusEl.textContent = '';
 			}
 			setDownloadState('disabled');
-			setRefreshState('disabled');
 		};
 
 		const renderGames = (games) => {
 			sourceGames = Array.isArray(games) ? games : [];
 			if (!sourceGames.length) {
 				setDownloadState('disabled');
-				setRefreshState('disabled');
 				showError({
 					title: 'No playtime data available',
 					body: 'If this is your profile, make sure your Steam Game Details privacy is set to Public.',
@@ -1314,9 +940,6 @@
 				return;
 			}
 			placeGames();
-			if (!isRefreshCoolingDown()) {
-				setRefreshState('ready');
-			}
 		};
 
 		window.addEventListener('resize', () => {
@@ -1328,61 +951,6 @@
 			resizeFrame = requestAnimationFrame(placeGames);
 		});
 
-		const createStatusRefreshAction = () => {
-			if (!refreshButton) {
-				return null;
-			}
-
-			const lookupIdentifier = getRefreshLookupIdentifier();
-			if (!lookupIdentifier) {
-				return null;
-			}
-
-			const actionButton = document.createElement('button');
-			actionButton.type = 'button';
-			actionButton.className = 'status-card-button status-card-refresh';
-
-			const iconTemplate = refreshButton.querySelector('.button-icon');
-			if (iconTemplate) {
-				actionButton.append(iconTemplate.cloneNode(true));
-			}
-
-			const labelSpan = document.createElement('span');
-			labelSpan.className = 'button-label';
-			actionButton.append(labelSpan);
-
-			const entry = { button: actionButton, label: labelSpan };
-			statusRefreshButtons.add(entry);
-
-			setButtonLabel(labelSpan, actionButton, REFRESH_LABEL_DEFAULT);
-
-			actionButton.addEventListener('click', (event) => {
-				event.preventDefault();
-				if (actionButton.disabled) {
-					return;
-				}
-				void executeManualRefresh().then((result) => {
-					if (!result && !document.contains(actionButton)) {
-						statusRefreshButtons.delete(entry);
-					}
-				});
-			});
-
-			if (isRefreshCoolingDown()) {
-				updateStatusRefreshButtons('cooldown', {
-					retryAfterSeconds: getRemainingRefreshCooldownSeconds(),
-				});
-			} else if (refreshInProgress) {
-				updateStatusRefreshButtons('busy');
-			} else if (sourceGames.length) {
-				updateStatusRefreshButtons('ready');
-			} else {
-				updateStatusRefreshButtons('disabled');
-			}
-
-			return actionButton;
-		};
-
 		const API_LIMIT_HINT = 'This error could be due to Steam API limits. Try providing your own key on the home page.';
 		const createApiKeyHelpAction = () => ({
 			label: 'Use your own Steam API key',
@@ -1393,8 +961,6 @@
 		const showError = (input, link) => {
 			const config =
 				typeof input === 'string' ? { body: input } : { ...(input ?? {}) };
-
-			statusRefreshButtons.clear();
 
 			if (link?.href) {
 				const actions = Array.isArray(config.actions) ? [...config.actions] : [];
@@ -1415,12 +981,10 @@
 					? input
 					: config.body ?? config.title ?? 'Unknown error';
 			console.error(logMessage);
-			setRefreshState('disabled');
 			statusEl?.classList.add('error');
 			statusEl?.classList.remove('hidden');
 			if (!statusEl) {
 				setDownloadState('disabled');
-				setRefreshState('disabled');
 				return;
 			}
 
@@ -1473,9 +1037,8 @@
 				})
 				: [];
 
-			let actionsEl = null;
 			if (resolvedActions.length) {
-				actionsEl = document.createElement('div');
+				const actionsEl = document.createElement('div');
 				actionsEl.className = 'status-card-actions';
 				for (const action of resolvedActions) {
 					const actionLink = document.createElement('a');
@@ -1490,17 +1053,6 @@
 					actionsEl.append(actionLink);
 				}
 				card.append(actionsEl);
-			}
-
-			const enableRefreshAction = config.disableRefresh !== true;
-			const refreshActionButton = enableRefreshAction ? createStatusRefreshAction() : null;
-			if (refreshActionButton) {
-				if (!actionsEl) {
-					actionsEl = document.createElement('div');
-					actionsEl.className = 'status-card-actions';
-					card.append(actionsEl);
-				}
-				actionsEl.prepend(refreshActionButton);
 			}
 
 			statusEl.append(card);
@@ -1519,12 +1071,6 @@
 					: null;
 			if (canonicalId) {
 				resolvedSteamId64 = canonicalId;
-				refreshIdentifier = canonicalId;
-			} else if (typeof payload.steamID === 'string') {
-				const trimmed = payload.steamID.trim();
-				if (trimmed) {
-					refreshIdentifier = trimmed;
-				}
 			}
 
 			const resolvedFrom =
@@ -1603,7 +1149,6 @@
 						title: 'Profile not found',
 						body: "We couldn't find a Steam profile with that identifier.",
 						hint: 'Use the ID from your profile URL (steamcommunity.com/id/... or /profiles/...) or the full steamID64.',
-						disableRefresh: true,
 						actions: [
 							{
 								label: 'Open steamid.io',

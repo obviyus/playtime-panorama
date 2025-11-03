@@ -184,15 +184,11 @@ export async function getVanityResolution(
 	);
 }
 
-interface FetchPlaytimeOptions {
-	apiKeyOverride?: string;
-}
-
 async function fetchPlaytimeFromSteam(
 	steamID: string,
-	options?: FetchPlaytimeOptions,
+	apiKeyOverride?: string,
 ): Promise<CachedPlaytimePayload> {
-	const apiKey = resolveSteamApiKey(options?.apiKeyOverride);
+	const apiKey = resolveSteamApiKey(apiKeyOverride);
 
 	const requestUrl = buildSteamRequestUrl(steamID, apiKey);
 	const steamResponse = await limitedSteamFetch(requestUrl);
@@ -227,31 +223,16 @@ async function fetchPlaytimeFromSteam(
 	return payload;
 }
 
-interface GetPlaytimePayloadOptions {
-	forceRefresh?: boolean;
-	apiKeyOverride?: string;
-}
-
 export async function getPlaytimePayload(
 	steamID: string,
-	options?: GetPlaytimePayloadOptions,
+	apiKeyOverride?: string,
 ): Promise<CachedPlaytimePayload> {
-	const forceRefresh = options?.forceRefresh ?? false;
-
-	if (!forceRefresh) {
-		const cachedPayload = await getCachedPlaytimePayload(steamID);
-		if (cachedPayload) {
-			return cachedPayload;
-		}
+	const cachedPayload = await getCachedPlaytimePayload(steamID);
+	if (cachedPayload) {
+		return cachedPayload;
 	}
 
-	if (!forceRefresh) {
-		console.log(`No cached playtime payload for SteamID ${steamID}, fetching...`);
-	} else {
-		console.log(`Refreshing playtime payload for SteamID ${steamID}...`);
-	}
+	console.log(`No cached playtime payload for SteamID ${steamID}, fetching...`);
 
-	return fetchPlaytimeFromSteam(steamID, {
-		apiKeyOverride: options?.apiKeyOverride,
-	});
+	return fetchPlaytimeFromSteam(steamID, apiKeyOverride);
 }

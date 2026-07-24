@@ -8,7 +8,8 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "wrangler": "^4.114.0"
   },
   "peerDependencies": {
     "typescript": "^5.9.3"

@@ -44,5 +44,5 @@ form?.addEventListener('submit',(event)=>{
   if(message){if(errorEl)errorEl.textContent=message;accountInput?.setAttribute('aria-invalid','true');accountInput?.focus();return}
   const key=keyInput?.value.trim()||'';
   try{if(key)localStorage.setItem(STORAGE_KEY,key);else localStorage.removeItem(STORAGE_KEY)}catch{}
-  window.location.assign(`/profile/${encodeURIComponent(accounts.join(','))}`);
+  window.location.assign(`/${encodeURIComponent(accounts.join(','))}`);
 });

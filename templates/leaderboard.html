@@ -1,1 +1,43 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>本地排行榜 · Steam 游玩时光全景图</title><meta name="description" content="查看本地 SQLite 缓存生成的 Steam 游玩数据排行榜。"><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/assets/site.css"></head><body><a class="skip-link" href="#main">跳到主要内容</a><header class="site-header"><div class="container nav-wrap"><a class="brand" href="/"><span class="brand-mark"></span><span>Steam 游玩时光全景图</span></a><button class="nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="site-nav" aria-label="打开导航菜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><nav class="nav-links" id="site-nav" data-nav-links><a href="/">首页</a><a href="/guide">使用教程</a><a href="/faq">常见问题</a><a href="/leaderboard" aria-current="page">排行榜</a><a class="github-link" href="https://github.com/yundan125/playtime-panorama" target="_blank" rel="noopener noreferrer">GitHub 项目</a></nav></div></header><main id="main"><section class="page-hero"><div class="container"><p class="eyebrow">仅来自本机 SQLite 缓存</p><h1>本地游玩排行榜</h1><p>成功查询过的单个账号会进入本地缓存。这里不会公开发布数据，也不会保存用户提供的 Steam API Key。</p><div class="leader-summary"><div class="stat-card"><span class="stat-label">缓存账号</span><strong class="stat-value" id="cached-profiles">—</strong></div><div class="stat-card"><span class="stat-label">累计游玩时间</span><strong class="stat-value" id="total-hours">—</strong></div><div class="stat-card"><span class="stat-label">不同游戏</span><strong class="stat-value" id="unique-games">—</strong></div><div class="stat-card"><span class="stat-label">整体最常玩</span><strong class="stat-value" id="top-game">—</strong></div></div></div></section><section class="container" style="padding-bottom:5rem"><p class="status-line" id="leader-status" role="status">正在读取排行榜…</p><div class="table-panel"><div class="tabs" role="tablist" aria-label="排行榜排序"><button class="tab" type="button" data-metric="byTotalPlaytime" aria-selected="true">总游玩时间</button><button class="tab" type="button" data-metric="byGameCount" aria-selected="false">游戏数量</button><button class="tab" type="button" data-metric="byAveragePlaytime" aria-selected="false">平均游戏时长</button></div><div id="leader-table-host"></div></div><p class="fine-print" style="margin-top:1rem">数据快照生成时间：<span id="generated-at">—</span>。缓存有效期为 24 小时，排行榜接口快照最多缓存 5 分钟。</p></section></main><footer class="site-footer"><div class="container footer-wrap"><span>排行榜为空？先生成一次公开账号的全景图。</span><div class="footer-links"><a href="/">开始生成</a><a href="/faq">数据说明</a></div></div></footer><script src="/assets/site.js" defer></script><script src="/assets/leaderboard.js" defer></script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>站点排行榜 · Steam 游玩时光全景图</title>
+  <meta name="description" content="查看 Cloudflare D1 缓存生成的 Steam 游玩数据排行榜。">
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="site-header"><div class="container nav-wrap">
+    <a class="brand" href="/"><span class="brand-mark"></span><span>Steam 游玩时光全景图</span></a>
+    <button class="nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="site-nav" aria-label="打开导航菜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <nav class="nav-links" id="site-nav" data-nav-links><a href="/">首页</a><a href="/guide">使用教程</a><a href="/faq">常见问题</a><a href="/leaderboard" aria-current="page">排行榜</a><a class="github-link" href="https://github.com/yundan125/playtime-panorama" target="_blank" rel="noopener noreferrer">GitHub 项目</a></nav>
+  </div></header>
+  <main id="main">
+    <section class="page-hero"><div class="container">
+      <p class="eyebrow">来自 Cloudflare D1 缓存</p>
+      <h1>站点游玩排行榜</h1>
+      <p>成功查询过的单个账号会进入站点缓存和聚合统计。这里不会保存用户提供的 Steam API Key。</p>
+      <div class="leader-summary">
+        <div class="stat-card"><span class="stat-label">缓存账号</span><strong class="stat-value" id="cached-profiles">—</strong></div>
+        <div class="stat-card"><span class="stat-label">累计游玩时间</span><strong class="stat-value" id="total-hours">—</strong></div>
+        <div class="stat-card"><span class="stat-label">不同游戏</span><strong class="stat-value" id="unique-games">—</strong></div>
+        <div class="stat-card"><span class="stat-label">整体最常玩</span><strong class="stat-value" id="top-game">—</strong></div>
+      </div>
+    </div></section>
+    <section class="container" style="padding-bottom:5rem">
+      <p class="status-line" id="leader-status" role="status">正在读取排行榜…</p>
+      <div class="table-panel">
+        <div class="tabs" role="tablist" aria-label="排行榜排序"><button class="tab" type="button" data-metric="byTotalPlaytime" aria-selected="true">总游玩时间</button><button class="tab" type="button" data-metric="byGameCount" aria-selected="false">游戏数量</button><button class="tab" type="button" data-metric="byAveragePlaytime" aria-selected="false">平均游戏时长</button></div>
+        <div id="leader-table-host"></div>
+      </div>
+      <p class="fine-print" style="margin-top:1rem">数据快照生成时间：<span id="generated-at">—</span>。游戏数据缓存有效期为 24 小时，排行榜接口快照最多缓存 5 分钟。</p>
+    </section>
+  </main>
+  <footer class="site-footer"><div class="container footer-wrap"><span>排行榜为空？先生成一次公开账号的全景图。</span><div class="footer-links"><a href="/">开始生成</a><a href="/faq">数据说明</a></div></div></footer>
+  <script src="/assets/site.js" defer></script>
+  <script src="/assets/leaderboard.js" defer></script>
+</body>
+</html>

@@ -1,8 +1,8 @@
 # Steam 游玩时光全景图
 
-一个在本地运行的中文 Steam 游玩时间可视化工具。它读取 Steam Web API 中公开的游戏与累计游玩时间，用 Steam 官方封面生成响应式全景拼图：玩得越久，封面占据的区域越大。结果可在浏览器中导出为高清 PNG。
+一个中文 Steam 游玩时间可视化工具。Cloudflare Worker 读取 Steam Web API 中公开的游戏与累计游玩时间，Workers Static Assets 提供前端，D1 保存缓存和排行榜数据；浏览器用 Steam 官方封面生成响应式全景拼图并导出高清 PNG。
 
-本项目只面向本地运行，不包含 GitHub Pages、Cloudflare、自定义域名或其他线上部署配置说明。
+当前主部署架构为 Cloudflare Workers + Static Assets + D1，原 Bun 全栈版本仍作为本地备用。仓库不会保存 Steam API Key；线上 Key 必须使用 Cloudflare Secret。
 
 ## 功能列表
 
@@ -13,7 +13,7 @@
 - 使用柔化权重按游玩时长调整封面面积，并随页面宽度自动布局。
 - 显示账号数、游戏数、总时长、平均时长和最常玩的游戏。
 - 浏览器 Canvas 本地导出 PNG，只包含拼图主体。
-- 使用 SQLite 缓存 24 小时，并生成本机排行榜。
+- 使用 Cloudflare D1 缓存 24 小时，并生成站点排行榜。
 - 提供完整中文教程、FAQ、隐私说明和可执行错误提示。
 
 ## 效果说明
@@ -22,8 +22,8 @@
 
 ## 普通用户：如何使用网页
 
-1. 请开发者或你自己先启动本地服务。
-2. 浏览器打开 <http://localhost:3000>。
+1. 打开已部署的站点，或由开发者启动本地 Worker。
+2. 本地开发时访问 Wrangler 在终端打印的地址。
 3. 输入 Steam 用户名、SteamID64 或资料网址。
 4. 多个账号可用逗号、空格或换行分隔。
 5. 通常无需填写 API Key；服务端未配置 Key 时，可展开可选区域填写自己的 Key。
@@ -32,12 +32,12 @@
 
 完整步骤见网页的 `/guide`，常见问题见 `/faq`。
 
-## 开发者：本地启动
+## 开发者：Cloudflare 本地启动
 
 ### 系统要求
 
 - Windows 10/11、macOS 或 Linux
-- Bun 1.3 或更高版本
+- Bun 1.3 或更高版本、Wrangler 4.114.0
 - 可访问 Steam Web API 和 `cdn.steamstatic.com` 的网络
 - 一个 Steam Web API Key（可配置在服务端，也可由用户在网页临时提供）
 
@@ -59,50 +59,34 @@ powershell -c "irm bun.sh/install.ps1 | iex"
 bun install
 ```
 
-### 配置 Steam API Key
+### 配置本地 Steam API Key
 
 申请地址：<https://steamcommunity.com/dev/apikey>
 
-单个 Key：
+复制示例文件为不会提交的 `.dev.vars`，并填写本地测试 Key：
 
 ```powershell
-$env:STEAM_API_KEY="你的Steam API Key"
-bun run dev
+Copy-Item .dev.vars.example .dev.vars
 ```
 
-多个 Key（服务端按轮询使用）：
+也可以不设置本地变量，在首页填写自己的 Key。用户 Key 优先于 Cloudflare Secret，仅保存在当前浏览器 `localStorage`，并通过 `X-Steam-API-Key` 请求头发送给 Worker；不会进入 URL、响应正文、日志、D1 或构建产物。
+
+### 初始化本地 D1 并启动
 
 ```powershell
-$env:STEAM_API_KEYS="Key1,Key2,Key3"
-bun run dev
+bun run cf:build
+bun run cf:d1:local
+bun run cf:dev
 ```
 
-也可以不设置环境变量，在首页展开“Steam Web API Key（可选）”后填写。用户 Key 优先于环境变量 Key，仅保存在当前浏览器 `localStorage`，随查询的 POST 请求正文发送给本地服务；不会进入 URL、终端日志、SQLite 或项目文件。
+启动成功后以 Wrangler 输出的本地地址为准。
 
-### 启动开发服务器
-
-```powershell
-bun run dev
-```
-
-默认访问：<http://localhost:3000>
-
-开发模式使用 Bun 热更新。启动成功后终端会输出实际地址。
-
-### 生产构建和启动
+### Bun 备用版本
 
 ```powershell
-bun run build
-bun run start
-```
-
-构建输出位于 `dist/`。`start` 脚本使用跨平台 Bun 启动文件，不依赖 Unix 的 `NODE_ENV=...` 语法，因此可在 Windows PowerShell 中使用。
-
-### 指定端口
-
-```powershell
-$env:PORT="3001"
-bun run dev
+bun run dev:bun
+bun run build:bun
+bun run start:bun
 ```
 
 然后访问 <http://localhost:3001>。生产模式同样支持 `PORT`。
@@ -162,8 +146,8 @@ steam-playtime-merged-3-accounts.png
 ## API Key 安全说明
 
 - 不要把 Key 提交到 GitHub、截图发布或写入公开文档。
-- 服务端环境变量只在进程内读取。
-- 网页填写的 Key 仅存当前浏览器，使用 POST JSON 发送到本地服务。
+- 站点 Key 使用 Cloudflare Secret，不写入 `wrangler.jsonc`。
+- 网页填写的 Key 仅存当前浏览器，使用 `X-Steam-API-Key` 请求头发送到 Worker。
 - 服务端日志只记录账号与错误类别，不输出 Key 或完整 Steam 请求 URL。
 - Key 泄露后请到 Steam API Key 页面撤销或重新生成，并在首页清除旧 Key。
 
@@ -173,28 +157,12 @@ steam-playtime-merged-3-accounts.png
 | --- | --- | --- |
 | `STEAM_API_KEY` | 单个服务端 Steam API Key | 无 |
 | `STEAM_API_KEYS` | 逗号分隔的多个服务端 Key，优先于单 Key | 无 |
-| `PORT` | HTTP 服务端口 | `3000` |
-| `STEAM_CACHE_URL` | Bun SQL/SQLite 连接地址或文件路径 | `sqlite://./steam-cache.db` |
-
-示例：
-
-```powershell
-$env:STEAM_CACHE_URL="sqlite://./data/steam-cache.db"
-$env:PORT="3000"
-bun run dev
-```
-
-请先确保自定义数据库目录存在且可写。
+| `DB` | Cloudflare D1 绑定 | 必需 |
+| `ASSETS` | Workers Static Assets 绑定 | 必需 |
 
 ## 数据库与缓存
 
-默认数据库保存在项目根目录：
-
-```text
-steam-cache.db
-steam-cache.db-wal
-steam-cache.db-shm
-```
+主架构使用 D1，表结构由 `schema.sql` 创建：
 
 主要内容：
 
@@ -203,7 +171,7 @@ steam-cache.db-shm
 - `playtime_metrics`：排行榜所需的账号汇总指标。
 - `game_playtime_totals`：跨缓存账号聚合的游戏时长。
 
-排行榜只反映本机查询缓存，不是全球排行榜。要清空本地测试数据，请停止服务、先备份，再删除上述三个数据库文件并重新启动。当前没有网页端单条删除功能。
+排行榜反映当前 D1 数据库中的查询缓存。线上和本地 D1 是两个独立环境；执行清理 SQL 前应先确认 `--local` 或 `--remote` 并做好备份。Bun 备用版本仍使用本地 SQLite 文件。
 
 ## 项目目录结构
 
@@ -269,12 +237,13 @@ bun run dev
 ## 路由与接口
 
 - `/`：首页
-- `/profile/:identifiers`：结果页；支持刷新
+- `/:steamIdentifier`：单账号或编码后的多账号结果页；支持刷新
+- `/profile/:identifiers`：旧结果页兼容路由
 - `/guide`：详细教程
 - `/faq`：常见问题
-- `/leaderboard`：本地排行榜
-- `POST /api/playtime`：单账号或多账号查询，用户 Key 放在 JSON 请求正文
+- `/leaderboard`：D1 站点排行榜
+- `POST /api/playtime`：单账号或多账号查询，用户 Key 仅通过 `X-Steam-API-Key` 请求头提供
 - `GET /api/playtime/:identifier`：兼容单账号 API；自定义 Key 可通过 `X-Steam-API-Key` 请求头提供
-- `/api/leaderboard`：本地排行榜 JSON
+- `/api/leaderboard`：D1 排行榜 JSON
 
 不再支持通过 `?api_key=...` 查询参数传递 Key，以避免 Key 出现在 URL、历史记录或访问日志中。

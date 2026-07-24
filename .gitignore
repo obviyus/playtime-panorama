@@ -1,9 +1,10 @@
 # dependencies (bun install)
-node_modules
+node_modules/
 
 # output
 out
 dist
+dist-worker/
 *.tgz
 
 # code coverage
@@ -17,6 +18,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # dotenv environment variable files
 .env
+.env.*
+.dev.vars
+!.env.example
+!.dev.vars.example
 .env.development.local
 .env.test.local
 .env.production.local
@@ -26,7 +31,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .eslintcache
 .cache
 *.tsbuildinfo
-steam-cache.db*
+steam-cache.db
+steam-cache.db-shm
+steam-cache.db-wal
+.wrangler/
 
 # IntelliJ based IDEs
 .idea

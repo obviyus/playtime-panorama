@@ -91,8 +91,8 @@ https://steamcommunity.com/profiles/76561198000000002"></textarea>
                                         placeholder="通常无需填写"><button class="button secondary" id="toggle-key"
                                         type="button">显示</button><button class="button ghost" id="clear-key"
                                         type="button">清除</button></div>
-                                <p class="fine-print">API Key 仅保存在当前浏览器中，并随查询请求发送到本地服务，由本地服务请求 Steam Web API。程序不会将该 Key
-                                    持久保存到数据库。<a href="https://steamcommunity.com/dev/apikey" target="_blank"
+                                <p class="fine-print">API Key 仅保存在当前浏览器中，并通过 <code>X-Steam-API-Key</code> 请求头发送到本站服务，由本站服务请求 Steam Web API。程序不会将该 Key
+                                    写入 URL、日志或 D1 数据库；未填写时使用的站点 Secret 不会发送到浏览器。<a href="https://steamcommunity.com/dev/apikey" target="_blank"
                                         rel="noopener noreferrer">申请 API Key</a></p>
                             </div>
                         </div>
@@ -160,7 +160,7 @@ https://steamcommunity.com/profiles/76561198000000002"></textarea>
         </section>
     </main>
     <footer class="site-footer">
-        <div class="container footer-wrap"><span>Steam 游玩时光全景图 · 本地运行工具</span>
+        <div class="container footer-wrap"><span>Steam 游玩时光全景图 · Cloudflare Workers 站点</span>
             <div class="footer-links"><a href="/guide">使用教程</a><a href="/faq">隐私与常见问题</a><a
                     href="https://github.com/yundan125/playtime-panorama" target="_blank"
                     rel="noopener noreferrer">项目源码</a></div>

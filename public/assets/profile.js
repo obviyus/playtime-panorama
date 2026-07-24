@@ -48,7 +48,7 @@ function render(data){
 }
 async function load(){
   if(!identifiers){showError('没有收到 Steam 账号，请返回首页输入后再试。');return}setLoading();downloadMessage.textContent='';
-  try{const response=await fetch('/api/playtime',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({identifiers,apiKey:getKey()||undefined})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'本地服务返回了无法识别的错误。');render(data)}catch(error){showError(error instanceof Error?error.message:'暂时无法读取 Steam 数据，请稍后重试。')}
+  try{const key=getKey();const headers={'Content-Type':'application/json','Accept':'application/json'};if(key)headers['X-Steam-API-Key']=key;const response=await fetch('/api/playtime',{method:'POST',headers,body:JSON.stringify({identifiers})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'本站服务返回了无法识别的错误。');render(data)}catch(error){showError(error instanceof Error?error.message:'暂时无法读取 Steam 数据，请稍后重试。')}
 }
 function drawFallback(ctx,x,y,w,h,name){ctx.fillStyle='#182632';ctx.fillRect(x,y,w,h);ctx.fillStyle='#9db2c0';ctx.font=`${Math.max(11,Math.min(22,w/14))}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';const label=(name||'封面暂不可用').slice(0,22);ctx.fillText(label,x+w/2,y+h/2,Math.max(20,w-18))}
 function drawCover(ctx,img,x,y,w,h){const sourceRatio=img.naturalWidth/img.naturalHeight;const targetRatio=w/h;let sx=0,sy=0,sw=img.naturalWidth,sh=img.naturalHeight;if(sourceRatio>targetRatio){sw=img.naturalHeight*targetRatio;sx=(img.naturalWidth-sw)/2}else{sh=img.naturalWidth/targetRatio;sy=(img.naturalHeight-sh)/2}ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h)}

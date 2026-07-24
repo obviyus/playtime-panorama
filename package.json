@@ -2,9 +2,19 @@
   "name": "playtime-panorama",
   "module": "server/index.ts",
   "scripts": {
-    "dev": "bun --use-system-ca --hot server/index.ts",
-    "build": "bun build --target=bun --production --outdir=dist server/index.ts",
-    "start": "bun --use-system-ca dist/index.js",
+    "dev": "bun run dev:bun",
+    "build": "bun run build:bun",
+    "start": "bun run start:bun",
+    "dev:bun": "bun --use-system-ca --hot server/index.ts",
+    "build:bun": "bun server/build.ts",
+    "start:bun": "bun --use-system-ca server/start.mjs",
+    "cf:build": "bun scripts/build-worker.ts",
+    "cf:dev": "bun run cf:build && wrangler dev",
+    "cf:dev:remote": "bun run cf:build && wrangler dev --remote",
+    "cf:deploy": "bun run cf:build && wrangler deploy",
+    "cf:typegen": "wrangler types",
+    "cf:d1:local": "wrangler d1 execute playtime-panorama-db --local --file=./schema.sql",
+    "cf:d1:remote": "wrangler d1 execute playtime-panorama-db --remote --file=./schema.sql",
     "check": "tsc --noEmit"
   },
   "devDependencies": {

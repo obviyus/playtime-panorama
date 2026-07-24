@@ -9,10 +9,10 @@ function entriesFor(metric){return snapshot?.metrics?.[metric]||[]}
 function render(metric){
   tabs.forEach(tab=>tab.setAttribute('aria-selected',String(tab.dataset.metric===metric)));
   const entries=entriesFor(metric);
-  if(!entries.length){const empty=document.createElement('div');empty.className='empty-state';empty.textContent='本地排行榜暂无数据。先在首页生成一次全景图，成功读取的账号会写入本地缓存。';tableHost.replaceChildren(empty);return}
+  if(!entries.length){const empty=document.createElement('div');empty.className='empty-state';empty.textContent='排行榜暂无数据。先在首页生成一次全景图，成功读取的账号会写入站点缓存。';tableHost.replaceChildren(empty);return}
   const wrap=document.createElement('div');wrap.className='table-wrap';const table=document.createElement('table');table.className='leader-table';
   const head=document.createElement('thead');const hr=document.createElement('tr');['排名','Steam 账号','游戏数量','总游玩时间','平均游戏时长','最常玩的游戏','数据更新时间'].forEach(t=>hr.append(cell('th',t)));head.append(hr);
-  const body=document.createElement('tbody');entries.forEach((entry,index)=>{const row=document.createElement('tr');row.append(cell('td',String(index+1)));const id=cell('td','');const link=document.createElement('a');link.href=`/profile/${encodeURIComponent(entry.steamId)}`;link.textContent=entry.steamId;id.append(link);row.append(id,cell('td',Number(entry.gameCount||0).toLocaleString('zh-CN')),cell('td',fmtHours(entry.totalMinutes)),cell('td',fmtHours(entry.averageMinutes)),cell('td',entry.topGame?.name?`${entry.topGame.name}（${fmtHours(entry.topGame.minutes)}）`:'—'),cell('td',fmtDate(entry.lastUpdated)));body.append(row)});
+  const body=document.createElement('tbody');entries.forEach((entry,index)=>{const row=document.createElement('tr');row.append(cell('td',String(index+1)));const id=cell('td','');const link=document.createElement('a');link.href=`/${encodeURIComponent(entry.steamId)}`;link.textContent=entry.steamId;id.append(link);row.append(id,cell('td',Number(entry.gameCount||0).toLocaleString('zh-CN')),cell('td',fmtHours(entry.totalMinutes)),cell('td',fmtHours(entry.averageMinutes)),cell('td',entry.topGame?.name?`${entry.topGame.name}（${fmtHours(entry.topGame.minutes)}）`:'—'),cell('td',fmtDate(entry.lastUpdated)));body.append(row)});
   table.append(head,body);wrap.append(table);tableHost.replaceChildren(wrap);
 }
 tabs.forEach(tab=>tab.addEventListener('click',()=>render(tab.dataset.metric)));

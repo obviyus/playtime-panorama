@@ -34,6 +34,8 @@ const STEAM_API_BASE =
 const STEAM_VANITY_API_BASE =
 	"https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/";
 const steamIdPattern = /^\d{17}$/;
+const vanityPattern = /^[A-Za-z0-9_-]{2,64}$/;
+const STEAM_TIMEOUT_MS = 12_000;
 
 const steamApiKeyList: string[] = (() => {
 	const csv = Bun.env.STEAM_API_KEYS;
@@ -43,7 +45,7 @@ const steamApiKeyList: string[] = (() => {
 			.map((key) => key.trim())
 			.filter(Boolean);
 		if (keys.length > 0) {
-			console.log(`Using ${keys.length} Steam API keys from STEAM_API_KEYS`);
+			console.log(`已从 STEAM_API_KEYS 读取 ${keys.length} 个 Steam API Key`);
 			return keys;
 		}
 	}
@@ -68,7 +70,20 @@ const steamRequestLimiter = new Bottleneck({
 });
 
 function limitedSteamFetch(input: string, init?: RequestInit) {
-	return steamRequestLimiter.schedule(() => fetch(input, init));
+	return steamRequestLimiter.schedule(async () => {
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), STEAM_TIMEOUT_MS);
+		try {
+			return await fetch(input, { ...init, signal: controller.signal });
+		} catch (error) {
+			if (error instanceof Error && error.name === "AbortError") {
+				throw new SteamIdentifierError("Steam API 请求超时，请检查网络后重试。", 504, "STEAM_TIMEOUT");
+			}
+			throw new SteamIdentifierError("无法连接 Steam API，请检查网络或稍后重试。", 502, "STEAM_NETWORK_ERROR");
+		} finally {
+			clearTimeout(timer);
+		}
+	});
 }
 
 let steamApiKeyCursor = 0;
@@ -113,12 +128,51 @@ function buildVanityResolveUrl(identifier: string, apiKey: string) {
 
 export class SteamIdentifierError extends Error {
 	status: number;
+	code: string;
 
-	constructor(message: string, status = 400) {
+	constructor(message: string, status = 400, code = "INVALID_IDENTIFIER") {
 		super(message);
 		this.name = "SteamIdentifierError";
 		this.status = status;
+		this.code = code;
 	}
+}
+
+function extractProfileIdentifier(raw: string) {
+	const trimmed = raw.trim();
+	if (!trimmed) return "";
+	if (!/steamcommunity\.com/i.test(trimmed)) return trimmed.replace(/^\/+|\/+$/g, "");
+	try {
+		const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+		const url = new URL(candidate);
+		if (!/(^|\.)steamcommunity\.com$/i.test(url.hostname)) return "";
+		const parts = url.pathname.split("/").filter(Boolean);
+		if ((parts[0]?.toLowerCase() === "id" || parts[0]?.toLowerCase() === "profiles") && parts[1]) {
+			return decodeURIComponent(parts[1]);
+		}
+	} catch {
+		return "";
+	}
+	return "";
+}
+
+export async function normalizeSteamIdentifier(rawIdentifier: string, apiKeyOverride?: string) {
+	const identifier = extractProfileIdentifier(rawIdentifier);
+	if (!identifier) {
+		throw new SteamIdentifierError(
+			"Steam 账号格式无效。请输入 SteamID64、自定义用户名或完整个人资料网址。",
+			400,
+			"INVALID_IDENTIFIER",
+		);
+	}
+	if (!steamIdPattern.test(identifier) && !vanityPattern.test(identifier)) {
+		throw new SteamIdentifierError(
+			"Steam 用户名格式无效；SteamID64 通常是 17 位数字。",
+			400,
+			"INVALID_IDENTIFIER",
+		);
+	}
+	return getVanityResolution(identifier, apiKeyOverride);
 }
 
 export async function getVanityResolution(
@@ -128,7 +182,7 @@ export async function getVanityResolution(
 	const identifier = rawIdentifier.trim();
 
 	if (!identifier) {
-		throw new SteamIdentifierError("Steam identifier is required.");
+		throw new SteamIdentifierError("请输入 Steam 账号。", 400, "EMPTY_IDENTIFIER");
 	}
 
 	if (steamIdPattern.test(identifier)) {
@@ -140,7 +194,7 @@ export async function getVanityResolution(
 		return cachedSteamID;
 	}
 
-	console.log(`No cached vanity resolution for "${identifier}", fetching...`);
+	console.log(`未命中用户名缓存，正在解析：${identifier}`);
 	let apiKey: string;
 	try {
 		apiKey = resolveSteamApiKey(apiKeyOverride);
@@ -149,22 +203,28 @@ export async function getVanityResolution(
 			error instanceof Error
 				? error.message
 				: "STEAM_API_KEY or STEAM_API_KEYS must be configured";
-		throw new SteamIdentifierError(message, 500);
+		throw new SteamIdentifierError(
+			"本地服务未配置 Steam API Key，请在首页填写自己的 Key，或设置 STEAM_API_KEY。",
+			503,
+			"API_KEY_REQUIRED",
+		);
 	}
 
 	const requestUrl = buildVanityResolveUrl(identifier, apiKey);
 	const response = await limitedSteamFetch(requestUrl);
 
 	if (!response.ok) {
-		const errorBody = await response.text();
-		throw new SteamIdentifierError(
-			`Steam API error (${response.status}): ${errorBody.slice(0, 200)}`,
-			502,
-		);
+		if (response.status === 401 || response.status === 403) {
+			throw new SteamIdentifierError("Steam API Key 无效或无权访问，请检查后重试。", 401, "INVALID_API_KEY");
+		}
+		if (response.status === 429) {
+			throw new SteamIdentifierError("Steam API 请求过于频繁，请稍后再试。", 429, "RATE_LIMITED");
+		}
+		throw new SteamIdentifierError(`Steam API 返回错误（${response.status}），请稍后重试。`, 502, "STEAM_API_ERROR");
 	}
 
 	const payload = (await response.json()) as SteamResolveVanityResponse;
-	const { success: successCode = 0, steamid, message } = payload.response ?? {};
+	const { success: successCode = 0, steamid } = payload.response ?? {};
 
 	if (successCode === 1 && steamid) {
 		await cacheVanityResolution(identifier, steamid);
@@ -173,14 +233,16 @@ export async function getVanityResolution(
 
 	if (successCode === 42) {
 		throw new SteamIdentifierError(
-			message ?? "No vanity URL match found.",
+			"找不到该 Steam 自定义用户名，请检查拼写或改用 SteamID64。",
 			404,
+			"PROFILE_NOT_FOUND",
 		);
 	}
 
 	throw new SteamIdentifierError(
-		message ?? "Unable to resolve the vanity URL.",
+		"Steam 暂时无法解析该用户名，请稍后重试或改用 SteamID64。",
 		502,
+		"VANITY_RESOLUTION_FAILED",
 	);
 }
 
@@ -188,22 +250,32 @@ async function fetchPlaytimeFromSteam(
 	steamID: string,
 	apiKeyOverride?: string,
 ): Promise<CachedPlaytimePayload> {
-	const apiKey = resolveSteamApiKey(apiKeyOverride);
+	let apiKey: string;
+	try {
+		apiKey = resolveSteamApiKey(apiKeyOverride);
+	} catch {
+		throw new SteamIdentifierError(
+			"本地服务未配置 Steam API Key，请在首页填写自己的 Key，或设置 STEAM_API_KEY。",
+			503,
+			"API_KEY_REQUIRED",
+		);
+	}
 
 	const requestUrl = buildSteamRequestUrl(steamID, apiKey);
 	const steamResponse = await limitedSteamFetch(requestUrl);
 
 	if (!steamResponse.ok) {
-		const errorBody = await steamResponse.text();
-		throw new Error(
-			`Steam API error (${steamResponse.status}): ${errorBody.slice(0, 200)}`,
-		);
+		if (steamResponse.status === 401 || steamResponse.status === 403) {
+			throw new SteamIdentifierError("Steam API Key 无效，或该账号的游戏详情未公开。", steamResponse.status, steamResponse.status === 401 ? "INVALID_API_KEY" : "PROFILE_PRIVATE");
+		}
+		if (steamResponse.status === 429) {
+			throw new SteamIdentifierError("Steam API 请求过于频繁，请稍后再试。", 429, "RATE_LIMITED");
+		}
+		throw new SteamIdentifierError(`Steam API 返回错误（${steamResponse.status}），请稍后重试。`, 502, "STEAM_API_ERROR");
 	}
 
 	const data = (await steamResponse.json()) as SteamOwnedGamesResponse;
-	console.log(
-		`Found ${data.response?.game_count ?? 0} games for SteamID ${steamID}`,
-	);
+	console.log(`SteamID ${steamID}：读取到 ${data.response?.game_count ?? 0} 款游戏`);
 
 	const response = data.response ?? { game_count: 0, games: [] };
 	const games =
@@ -232,7 +304,7 @@ export async function getPlaytimePayload(
 		return cachedPayload;
 	}
 
-	console.log(`No cached playtime payload for SteamID ${steamID}, fetching...`);
+	console.log(`SteamID ${steamID} 未命中有效缓存，正在请求 Steam API`);
 
 	return fetchPlaytimeFromSteam(steamID, apiKeyOverride);
 }

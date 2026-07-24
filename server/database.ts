@@ -12,6 +12,7 @@ const sql =
 export const PLAYTIME_TTL_SECONDS = 60 * 60 * 24;
 export const MANUAL_REFRESH_COOLDOWN_SECONDS = 60 * 60;
 
+try {
 await sql`PRAGMA journal_mode = WAL`;
 
 await sql`
@@ -57,6 +58,13 @@ await sql`
 		requested_at INTEGER NOT NULL
 	)
 `;
+} catch (error) {
+	console.error(
+		`SQLite 数据库初始化失败（${cacheUrl}）。请确认目录存在、可写，且数据库未被其他程序锁定。`,
+		error instanceof Error ? error.message : error,
+	);
+	throw error;
+}
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 

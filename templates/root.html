@@ -1,344 +1,173 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="zh-CN">
 
 <head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Playtime Panorama</title>
-	<meta name="description" content="Build a wall of Steam cover art scaled by your playtime." />
-	<meta property="og:type" content="website" />
-	<meta property="og:title" content="Playtime Panorama" />
-	<meta property="og:description"
-		content="Turn your Steam history into a panorama of cover art, weighted by your playtime." />
-	<meta property="og:image" content="https://github.com/obviyus/playtime-panorama/raw/main/screenshot.jpg" />
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content="Playtime Panorama" />
-	<meta name="twitter:description"
-		content="See your Steam library visualized as a playtime-weighted panorama of cover art." />
-	<meta name="twitter:image" content="https://github.com/obviyus/playtime-panorama/raw/main/screenshot.jpg" />
-	<style>
-		:root {
-			color-scheme: dark;
-			font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-			background-color: #080808;
-			color: #f5f5f5;
-		}
-
-		body {
-			margin: 0;
-			min-height: 100vh;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: center;
-			gap: 1.5rem;
-			padding: 2rem;
-			background-color: #080808;
-		}
-
-		main {
-			max-width: 32rem;
-			width: 100%;
-			background-color: #0d0d0d;
-			border: 1px solid #222;
-			border-radius: 1rem;
-			padding: 2rem;
-			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-		}
-
-		h1 {
-			margin: 0 0 0.75rem;
-			font-size: clamp(1.75rem, 2vw + 1.2rem, 2.4rem);
-			line-height: 1.1;
-			letter-spacing: -0.02em;
-		}
-
-		p {
-			margin: 0 0 1.25rem;
-			color: #bbbbbb;
-			line-height: 1.5;
-		}
-
-		form {
-			display: grid;
-			gap: 1.25rem;
-		}
-
-		label {
-			font-weight: 600;
-			color: #f1f1f1;
-		}
-
-		input {
-			padding: 0.75rem 1rem;
-			border-radius: 0.75rem;
-			border: 1px solid #3d3d3d;
-			background-color: #060606;
-			color: inherit;
-			font-size: 1rem;
-			transition: border-color 150ms ease, box-shadow 150ms ease;
-		}
-
-		input:focus {
-			outline: none;
-			border-color: #ffffff;
-			box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
-		}
-
-		.form-actions {
-			display: flex;
-			flex-direction: column;
-			gap: 0.85rem;
-		}
-
-		.cta-button {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			gap: 0.55rem;
-			padding: 0.78rem 1.1rem;
-			border-radius: 0.85rem;
-			border: 1px solid #2b2b2b;
-			font-size: 1rem;
-			font-weight: 600;
-			background-color: #f6f6f6;
-			color: #0d0d0d;
-			text-decoration: none;
-			text-align: center;
-			transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease,
-				border-color 150ms ease;
-			cursor: pointer;
-		}
-
-		.cta-button:hover,
-		.cta-button:focus-visible {
-			transform: translateY(-1px);
-			background-color: #ffffff;
-			border-color: #3d3d3d;
-			box-shadow: 0 12px 24px rgba(255, 255, 255, 0.18);
-			outline: none;
-		}
-
-		.cta-button__label {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-		}
-
-		.privacy-tip {
-			margin-top: 1.5rem;
-			padding: 1.25rem;
-			border-radius: 0.75rem;
-			border: 1px solid rgba(255, 255, 255, 0.08);
-			background: linear-gradient(145deg, rgba(22, 22, 22, 0.9), rgba(10, 10, 10, 0.8));
-		}
-
-		.privacy-tip p {
-			margin: 0 0 0.85rem;
-			color: #dddddd;
-			font-weight: 600;
-			letter-spacing: -0.01em;
-		}
-
-		.privacy-tip ol {
-			margin: 0;
-			padding-left: 1.25rem;
-			color: #a7a7a7;
-		}
-
-		.privacy-tip li+li {
-			margin-top: 0.5rem;
-		}
-
-		small {
-			display: block;
-			margin-top: 0.35rem;
-			color: #8a8a8a;
-		}
-
-		footer {
-			font-size: 0.875rem;
-			color: #888888;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			gap: 0.5rem;
-		}
-
-		footer a {
-			color: inherit;
-			text-decoration: none;
-			font-weight: 500;
-			transition: color 150ms ease;
-		}
-
-		footer a:hover {
-			color: #f5f5f5;
-		}
-
-		.footer-attribution {
-			display: flex;
-			gap: 0.5rem;
-			align-items: center;
-			flex-wrap: wrap;
-			justify-content: center;
-		}
-
-		.api-key-section {
-			margin-top: 0.5rem;
-			border: 1px solid #2a2a2a;
-			border-radius: 0.75rem;
-			background-color: #090909;
-			overflow: hidden;
-		}
-
-		.api-key-section summary {
-			padding: 0.9rem 1rem;
-			cursor: pointer;
-			font-weight: 600;
-			color: #d5d5d5;
-			user-select: none;
-			transition: background-color 150ms ease;
-		}
-
-		.api-key-section summary:hover {
-			background-color: #0f0f0f;
-		}
-
-		.api-key-section[open] summary {
-			border-bottom: 1px solid #2a2a2a;
-		}
-
-		.api-key-content {
-			padding: 1rem;
-			display: flex;
-			flex-direction: column;
-			gap: 0.75rem;
-		}
-
-		.api-key-hint {
-			color: #7a7a7a;
-			font-size: 0.85rem;
-			margin-top: 0.25rem;
-		}
-
-		.api-key-content label a {
-			color: #ffffff;
-			text-decoration: underline;
-		}
-
-		.api-key-content label a:hover {
-			color: #f5f5f5;
-		}
-	</style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Steam 游玩时光全景图</title>
+    <meta name="description" content="根据 Steam 游戏游玩时长，生成响应式封面全景图并下载高清 PNG。">
+    <meta name="theme-color" content="#0b1118">
+    <link rel="icon" href="/favicon.svg">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="stylesheet" href="/assets/site.css">
 </head>
 
 <body>
-	<main>
-		<h1>Build your Playtime Panorama</h1>
-		<p>Drop in a steamID64 or Steam username to generate a wall of cover art scaled by your playtime.</p>
-		<form id="steam-form">
-			<label for="steam-id">
-				Username or steamID64
-				<small>Examples: obviyus, 76561198814583839.</small>
-			</label>
-			<input id="steam-id" name="steam-id" placeholder="obviyus" required autocomplete="off" />
+    <a class="skip-link" href="#main">跳到主要内容</a>
+    <header class="site-header">
+        <div class="container nav-wrap"><a class="brand" href="/"><span class="brand-mark"
+                    aria-hidden="true"></span><span>Steam 游玩时光全景图</span></a><button class="nav-toggle" type="button"
+                data-nav-toggle aria-expanded="false" aria-controls="site-nav" aria-label="打开导航菜单"><svg
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M4 7h16M4 12h16M4 17h16" />
+                </svg></button>
+            <nav class="nav-links" id="site-nav" data-nav-links aria-label="主导航"><a href="/"
+                    aria-current="page">首页</a><a href="/guide">使用教程</a><a href="/faq">常见问题</a><a
+                    href="/leaderboard">排行榜</a><a class="github-link"
+                    href="https://github.com/yundan125/playtime-panorama" target="_blank"
+                    rel="noopener noreferrer">GitHub 项目</a></nav>
+        </div>
+    </header>
+    <main id="main">
+        <section class="hero">
+            <div class="container hero-grid">
+                <div>
+                    <p class="eyebrow">你的游戏时间，另一种观看方式</p>
+                    <h1>Steam 游玩<br>时光全景图</h1>
+                    <p class="hero-lead">根据一个或多个 Steam 账号的游戏时长，生成一张独一无二的游戏封面全景图。添加多个账号时，相同游戏的游玩时长会自动累计；玩得越久，封面越醒目。
+</p>
+                    <div class="sample-mosaic" aria-label="示例全景图">
+                        <div class="sample-tile"><span>长期最爱 · 860 小时</span></div>
+                        <div class="sample-tile"><span>常玩游戏 · 320 小时</span></div>
+                        <div class="sample-tile"><span>近期投入 · 108 小时</span></div>
+                        <div class="sample-tile"><span>42 小时</span></div>
+                        <div class="sample-tile"><span>18 小时</span></div>
+                    </div>
+                    <p class="sample-caption">示意效果：同一张图里，游戏封面面积会随累计游玩时间变化。</p>
+                </div>
+                <form id="steam-form" class="query-card" novalidate>
+                    <div class="field">
+                        <label for="steam-accounts">Steam 账号</label>
 
-			<details class="api-key-section">
-				<summary>Use your own Steam API key (optional - try this if the tool is not working)</summary>
-				<div class="api-key-content">
-					<label for="api-key">
-						Steam Web API Key
-						<small>Get yours at <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener">steamcommunity.com/dev/apikey</a></small>
-					</label>
-					<input id="api-key" name="api-key" type="password" placeholder="Enter your Steam API key" autocomplete="off" />
-					<small class="api-key-hint">Your API key is stored locally in your browser and sent directly to Steam's servers.</small>
-				</div>
-			</details>
+                        <textarea id="steam-accounts" name="steam-accounts" placeholder="示例：
+76561198000000001
+example_user
+https://steamcommunity.com/id/example_user
+https://steamcommunity.com/profiles/76561198000000002"></textarea>
 
-			<div class="form-actions">
-				<button type="submit" class="cta-button">
-					<span class="cta-button__label">View playtime collage</span>
-				</button>
-			</div>
-		</form>
-		<div class="privacy-tip">
-			<p>Your Steam profile and playtime must be public for this to work.</p>
-			<ol>
-				<li>Visit your Steam profile in a browser and choose <strong>Edit Profile</strong>.</li>
-				<li>Open <strong>My privacy settings</strong>.</li>
-				<li>Set <strong>Game details</strong> to <strong>Public</strong> and uncheck “Always keep my total
-					playtime private even if users can see my game details.”</li>
-			</ol>
-		</div>
-	</main>
-	<script>
-		const form = document.getElementById('steam-form');
+                        <div class="field-hint">
+                            <p>每个账号只需填写以下任意一种格式，无需同时填写多种：</p>
+                            <ul>
+                                <li>
+                                    <strong>SteamID64：</strong>
+                                    17 位数字，例如
+                                    <code>76561198000000001</code>
+                                </li>
+                                <li>
+                                    <strong>自定义用户名：</strong>
+                                    Steam 个人资料网址中 <code>/id/</code> 后面的内容，例如
+                                    <code>example_user</code>
+                                </li>
+                                <li>
+                                    <strong>完整个人资料网址：</strong>
+                                    例如
+                                    <code>https://steamcommunity.com/id/example_user</code>
+                                    或
+                                    <code>https://steamcommunity.com/profiles/76561198000000001</code>
+                                </li>
+                            </ul>
 
-		const normalizeSteamIdentifier = (raw) => {
-			if (typeof raw !== 'string') {
-				return '';
-			}
-
-			const trimmed = raw.trim();
-			if (!trimmed) {
-				return '';
-			}
-
-			if (trimmed.includes('steamcommunity.com')) {
-				const vanityMatch = trimmed.match(/steamcommunity\.com\/(?:id|profiles)\/([^/?#]+)/i);
-				if (vanityMatch && vanityMatch[1]) {
-					try {
-						return decodeURIComponent(vanityMatch[1]);
-					} catch {
-						return vanityMatch[1];
-					}
-				}
-			}
-
-			return trimmed.replace(/^\/+/, '').replace(/\/$/, '');
-		};
-
-		form?.addEventListener('submit', event => {
-			event.preventDefault();
-			const formData = new FormData(form);
-			const targetId = normalizeSteamIdentifier(formData.get('steam-id'));
-			const apiKey = formData.get('api-key');
-
-			if (targetId) {
-				// Store API key in localStorage if provided
-				if (apiKey && typeof apiKey === 'string' && apiKey.trim()) {
-					localStorage.setItem('steam_api_key', apiKey.trim());
-				} else {
-					localStorage.removeItem('steam_api_key');
-				}
-
-				const url = '/' + encodeURIComponent(targetId);
-				window.location.assign(url);
-			}
-		});
-
-		// Load saved API key on page load
-		const savedApiKey = localStorage.getItem('steam_api_key');
-		const apiKeyInput = document.getElementById('api-key');
-		if (savedApiKey && apiKeyInput) {
-			apiKeyInput.value = savedApiKey;
-			const details = document.querySelector('.api-key-section');
-			if (details) {
-				details.open = true;
-			}
-		}
-	</script>
-	<footer>
-		<a href="/leaderboard">View Leaderboard</a>
-		<div class="footer-attribution">
-			<span>Built by</span>
-			<a href="https://github.com/obviyus" target="_blank" rel="noreferrer">@obviyus</a>
-			<span>•</span>
-			<a href="https://github.com/obviyus/playtime-panorama" target="_blank" rel="noreferrer">Source Code on
-				GitHub</a>
-		</div>
-	</footer>
+                            <p>
+                                可一次填写多个账号，账号之间可使用换行、英文逗号、中文逗号、
+                                空格、英文分号或中文分号分隔，最多填写 10 个账号。
+                            </p>
+                        </div>
+                    </div>
+                    <details class="api-details">
+                        <summary>Steam Web API Key</summary>
+                        <div class="api-inner">
+                            <div class="field"><label for="api-key">你的 Steam Web API Key</label>
+                                <div class="password-row"><input id="api-key" type="password" autocomplete="off"
+                                        placeholder="通常无需填写"><button class="button secondary" id="toggle-key"
+                                        type="button">显示</button><button class="button ghost" id="clear-key"
+                                        type="button">清除</button></div>
+                                <p class="fine-print">API Key 仅保存在当前浏览器中，并随查询请求发送到本地服务，由本地服务请求 Steam Web API。程序不会将该 Key
+                                    持久保存到数据库。<a href="https://steamcommunity.com/dev/apikey" target="_blank"
+                                        rel="noopener noreferrer">申请 API Key</a></p>
+                            </div>
+                        </div>
+                    </details><button class="button query-submit" type="submit">生成我的全景图</button>
+                    <div class="privacy-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" aria-hidden="true">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                            <path d="m9 12 2 2 4-4" />
+                        </svg><span>只读取 Steam 公开的游戏名称与游玩时间，不需要也不会读取 Steam 密码。个人资料、游戏详情和总游戏时间必须公开。</span></div>
+                </form>
+            </div>
+        </section>
+        <section class="section alt">
+            <div class="container">
+                <div class="section-heading">
+                    <p class="eyebrow">完整工具，而不只是一个输入框</p>
+                    <h2>从账号读取到图片保存，一次完成</h2>
+                    <p>保留原项目轻量、快速的特点，同时把多账号、隐私说明、错误处理和下载流程做得更清楚。</p>
+                </div>
+                <div class="feature-grid">
+                    <article class="feature">
+                        <h3>时长决定面积</h3>
+                        <p>使用柔化权重，突出长期游玩的作品，也让中低时长游戏保持可辨认。</p>
+                    </article>
+                    <article class="feature">
+                        <h3>多账号自动合并</h3>
+                        <p>相同 AppID 只出现一次，不同账号的游玩分钟数会自动相加。</p>
+                    </article>
+                    <article class="feature">
+                        <h3>高清 PNG 下载</h3>
+                        <p>由浏览器 Canvas 在本地生成，只导出拼图主体，并自动限制安全尺寸。</p>
+                    </article>
+                    <article class="feature">
+                        <h3>只读公开资料</h3>
+                        <p>请求 Steam Web API 的公开游戏数据，不接触密码、好友私信或支付信息。</p>
+                    </article>
+                    <article class="feature">
+                        <h3>电脑与手机都可用</h3>
+                        <p>网格会随页面宽度重新排布，触屏点击封面也能查看游戏信息。</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+        <section class="section">
+            <div class="container">
+                <div class="section-heading">
+                    <h2>开始前只需确认三件事</h2>
+                </div>
+                <div class="steps">
+                    <article class="step">
+                        <h3>资料允许公开读取</h3>
+                        <p>将“我的个人资料”和“游戏详情”设为公开，并取消隐藏总游戏时间。</p>
+                    </article>
+                    <article class="step">
+                        <h3>输入一个或多个账号</h3>
+                        <p>直接粘贴用户名、17 位 SteamID64 或完整资料网址，工具会自动识别和去重。</p>
+                    </article>
+                    <article class="step">
+                        <h3>生成并下载</h3>
+                        <p>等待封面加载完成，查看统计与账号状态，然后下载高清 PNG。</p>
+                    </article>
+                </div>
+                <p style="margin-top:1.5rem"><a class="button secondary" href="/guide">阅读详细使用教程</a></p>
+            </div>
+        </section>
+    </main>
+    <footer class="site-footer">
+        <div class="container footer-wrap"><span>Steam 游玩时光全景图 · 本地运行工具</span>
+            <div class="footer-links"><a href="/guide">使用教程</a><a href="/faq">隐私与常见问题</a><a
+                    href="https://github.com/yundan125/playtime-panorama" target="_blank"
+                    rel="noopener noreferrer">项目源码</a></div>
+        </div>
+    </footer>
+    <script src="/assets/site.js" defer></script>
+    <script src="/assets/home.js" defer></script>
 </body>
 
 </html>

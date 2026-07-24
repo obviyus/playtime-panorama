@@ -1,10 +1,11 @@
 {
   "name": "playtime-panorama",
-  "module": "index.ts",
+  "module": "server/index.ts",
   "scripts": {
-    "dev": "bun --hot server/index.ts",
+    "dev": "bun --use-system-ca --hot server/index.ts",
     "build": "bun build --target=bun --production --outdir=dist server/index.ts",
-    "start": "NODE_ENV=production bun dist/index.js"
+    "start": "bun --use-system-ca dist/index.js",
+    "check": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "latest"

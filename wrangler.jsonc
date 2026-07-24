@@ -1,21 +1,21 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "playtime-panorama",
-  "main": "./worker/index.ts",
-  "compatibility_date": "2026-07-24",
-  "workers_dev": true,
-  "assets": {
-    "directory": "./dist-worker",
-    "binding": "ASSETS",
-    "html_handling": "none",
-    "not_found_handling": "none",
-    "run_worker_first": true
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "playtime-panorama-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
-    }
-  ]
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "playtime-panorama",
+	"main": "./worker/index.ts",
+	"compatibility_date": "2026-07-24",
+	"workers_dev": true,
+	"assets": {
+		"directory": "./dist-worker",
+		"binding": "ASSETS",
+		"html_handling": "none",
+		"not_found_handling": "none",
+		"run_worker_first": true
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "playtime-panorama-db",
+			"database_id": "40952dd3-532d-4a90-aa55-bde4055efb6b"
+		},
+	]
 }
